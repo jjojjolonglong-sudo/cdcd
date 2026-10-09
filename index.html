@@ -51,7 +51,7 @@
    * 3. 윈앰프 본체 (윈도우 95/98 베벨)
    * ========================================================= */
   .winamp {
-    width: min(440px, 100%);
+    width: min(380px, 100%);
     height: fit-content;
     background: linear-gradient(180deg, #3b3b46, #24242c);
     border: 2px solid; border-color: #6e6e7c #101014 #101014 #6e6e7c;
@@ -80,48 +80,61 @@
   .env-warn[hidden] { display: none; }
 
   /* ---- 윈앰프 안에 들어간 투명 CD 플레이어 ----
-     CD 를 약간의 여유(padding)만 두고 딱 맞게 감싸는 정사각형 + 두꺼운 테두리 */
+     투명 플라스틱 케이스 하나로 이어진 정사각형 (가로폭 = 아래 정보 영역과 동일).
+     층 구조(아래→위): 앨범 이미지(75%) → 회전하는 반투명 CD → 플라스틱 테두리·그림자 → 유리 반사광 */
   .cd-panel {
-    position: relative; align-self: center; width: fit-content;
-    padding: 10px; border-radius: 22px;
-    background: linear-gradient(145deg, rgba(190,160,255,.30), rgba(60,40,120,.40));
-    border: 7px solid rgba(225,220,255,.85);
-    box-shadow: 0 0 0 2px #101014, 0 10px 30px rgba(0,0,0,.55),
-                inset 0 2px 0 rgba(255,255,255,.6), inset 0 0 18px rgba(0,0,0,.55);
-    overflow: hidden;
+    position: relative; width: 100%; aspect-ratio: 1 / 1;
+    padding: 22px; border-radius: 26px; overflow: hidden;
+    display: grid; place-items: center;
+    background: linear-gradient(145deg, rgba(200,180,255,.38), rgba(80,60,150,.5)), #1a1236;
+    box-shadow: 0 0 0 2px rgba(8,6,20,.9), 0 12px 30px rgba(0,0,0,.55);
   }
-  /* 유리 뚜껑 반사광 (CD 위에 겹쳐서, 회전하지 않고 고정) */
+  /* 앨범 커버: CD 가 아니라 사각형 영역 전체에 깔림. 회전하지 않음. 불투명도 75% */
+  .cd-bg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; opacity: .75; visibility: hidden; z-index: 0;
+  }
+  /* 플라스틱 테두리: 안쪽 영역과 같은 색조의 두꺼운 반투명 띠 + 안쪽 가장자리의 두툼한 그림자 */
+  .cd-panel::before {
+    content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
+    box-shadow:
+      inset 0 0 0 2px rgba(255,255,255,.70),      /* 바깥 가장자리 하이라이트 선 */
+      inset 0 0 0 14px rgba(255,255,255,.18),     /* 두꺼운 테두리 띠 (14px) */
+      inset 0 0 0 16px rgba(0,0,0,.28),           /* 띠 안쪽 경계선 */
+      inset 0 0 30px 14px rgba(20,10,50,.45);     /* 안쪽으로 번지는 두툼한 그림자 */
+  }
+  /* 유리 반사광 (CD 위에 겹쳐서 고정) */
   .cd-panel::after {
-    content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
-    background: linear-gradient(135deg, rgba(255,255,255,.22), transparent 38%);
+    content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.38), rgba(255,255,255,.06) 30%, transparent 46%),
+      linear-gradient(315deg, rgba(255,255,255,.14), transparent 28%);
   }
-  /* 원형 CD : 이미지가 없을 때도 CD 처럼 보이도록 기본 배경을 둔다 */
+
+  /* 원형 CD : 반투명, 4초에 한 바퀴 */
   .cd {
-    position: relative; display: block; width: min(228px, calc(100vw - 110px)); aspect-ratio: 1 / 1; border-radius: 50%; overflow: hidden;
-    background: conic-gradient(from 20deg, #2b2147, #5b4a9a, #1d3a5c, #7a68c8, #2b2147);
-    box-shadow: 0 0 0 3px rgba(255,255,255,.18), 0 8px 20px rgba(0,0,0,.6);
-    animation: cd-spin 6s linear infinite;      /* 항상 걸어두고 */
+    position: relative; z-index: 1; width: 100%; aspect-ratio: 1 / 1; border-radius: 50%; overflow: hidden;
+    background:
+      repeating-radial-gradient(circle, rgba(255,255,255,.10) 0 1px, transparent 1px 5px),
+      conic-gradient(from 20deg, rgba(255,255,255,.34), rgba(140,170,255,.14), rgba(255,255,255,.40), rgba(200,150,255,.16), rgba(255,255,255,.34));
+    border: 2px solid rgba(255,255,255,.55);
+    box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 0 22px rgba(255,255,255,.28);
+    animation: cd-spin 4s linear infinite;      /* 항상 걸어두고 */
     animation-play-state: paused;               /* 멈춘 상태로 시작 */
   }
   .cd.spinning { animation-play-state: running; }   /* PLAYING 일 때만 회전 */
   @keyframes cd-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-  /* 앨범 커버는 정사각형으로 업로드되므로 원 안에 꽉 채운다 */
-  .cd img {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: cover; display: block; visibility: hidden;
-  }
-  .cd::after {   /* CD 반사광 */
+  .cd::after {   /* CD 반사 줄무늬 (CD 와 같이 돌아서 회전이 눈에 보임) */
     content: ""; position: absolute; inset: 0; border-radius: 50%;
-    background: conic-gradient(from 0deg, rgba(255,255,255,0), rgba(255,255,255,.35) 10%, rgba(255,255,255,0) 22%,
-      rgba(120,200,255,.25) 40%, rgba(255,255,255,0) 55%, rgba(255,255,255,.35) 72%, rgba(255,255,255,0) 85%);
+    background: conic-gradient(from 0deg, rgba(255,255,255,0), rgba(255,255,255,.55) 8%, rgba(255,255,255,0) 20%,
+      rgba(120,200,255,.35) 38%, rgba(255,255,255,0) 52%, rgba(255,255,255,.55) 70%, rgba(255,255,255,0) 84%);
     mix-blend-mode: screen; pointer-events: none;
   }
-  .cd-hole {   /* 가운데 구멍 */
+  .cd-hole {   /* 가운데 구멍 (뒤의 이미지가 비쳐 보임) */
     position: absolute; left: 50%; top: 50%; width: 22%; height: 22%;
     transform: translate(-50%, -50%); border-radius: 50%; z-index: 2;
-    background: radial-gradient(circle, #0b0618 0 38%, rgba(255,255,255,.55) 40% 52%, rgba(255,255,255,.15) 54% 100%);
-    box-shadow: 0 0 0 2px rgba(255,255,255,.35), inset 0 0 10px rgba(0,0,0,.8);
+    background: radial-gradient(circle, rgba(10,6,24,.35) 0 38%, rgba(255,255,255,.5) 40% 52%, rgba(255,255,255,.14) 54% 100%);
+    box-shadow: 0 0 0 2px rgba(255,255,255,.4), inset 0 0 10px rgba(0,0,0,.5);
   }
 
   /* ---- 전광판 (LCD) ---- */
@@ -270,10 +283,10 @@
       VS Code Live Server 같은 로컬 서버(http://localhost)나 호스팅 주소로 열어주세요.
     </div>
 
-    <!-- 투명 CD 플레이어 (CD 를 감싸는 정사각형 케이스) -->
+    <!-- 투명 CD 플레이어 (앨범 이미지는 사각형 배경, CD 는 그 위에서 회전) -->
     <section class="cd-panel" aria-label="CD player">
+      <img class="cd-bg" id="cover" alt="앨범 커버" />
       <div class="cd" id="cd">
-        <img id="cover" alt="앨범 커버" />
         <div class="cd-hole"></div>
       </div>
     </section>
