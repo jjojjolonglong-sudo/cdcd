@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Retro CD & Winamp Player</title>
+
+<!-- 레트로 폰트 (VT323 은 한글이 없어서 한글은 시스템 폰트로 대체됩니다) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
+
+<style>
+  /* =========================================================
+   * 1. 디자인 토큰
+   * ========================================================= */
+  :root {
+    --neon: #39ff14;
+    --neon-dim: #1c8a0a;
+    --lcd-bg: #020a02;
+    --chrome-hi: #d4d0c8;
+    --room-top: #1a1030;
+    --room-bottom: #05030c;
+    --font-retro: "VT323", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; margin: 0; }
+  body {
+    font-family: var(--font-retro);
+    color: var(--neon);
+    background:
+      radial-gradient(ellipse at 50% 0%, #3a1f6e 0%, transparent 60%),
+      linear-gradient(180deg, var(--room-top), var(--room-bottom));
+    display: flex; justify-content: center;
+    padding: 28px 12px 40px;
+  }
+  button { font-family: var(--font-retro); }
+
+  /* =========================================================
+   * 2. 유튜브 플레이어 (화면에서는 안 보이게)
+   *    - display:none / 1px 크기 / 화면 밖(-9999px) 은 재생이 막힐 수 있어서
+   *      "200x200 크기로 화면 안 구석에 두고 투명도만 거의 0" 으로 숨깁니다.
+   * ========================================================= */
+  #yt-holder {
+    position: fixed; right: 0; bottom: 0;
+    width: 200px; height: 200px;
+    opacity: 0.01; pointer-events: none; z-index: -1; overflow: hidden;
+  }
+
+  /* =========================================================
+   * 3. 윈앰프 본체 (윈도우 95/98 베벨)
+   * ========================================================= */
+  .winamp {
+    width: min(440px, 100%);
+    height: fit-content;
+    background: linear-gradient(180deg, #3b3b46, #24242c);
+    border: 2px solid; border-color: #6e6e7c #101014 #101014 #6e6e7c;
+    box-shadow: 0 16px 40px rgba(0,0,0,.6);
+  }
+  .titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 2px 6px;
+    background: linear-gradient(90deg, #000080, #1084d0);
+    color: #fff; font-size: 20px; letter-spacing: 1px;
+  }
+  .tb-right { display: flex; align-items: center; gap: 6px; }
+  .tb-btn {
+    font-size: 17px; line-height: 1; padding: 1px 8px 2px; color: #111;
+    background: var(--chrome-hi);
+    border: 2px solid; border-color: #fff #404040 #404040 #fff; cursor: pointer;
+  }
+  .tb-btn:active { border-color: #404040 #fff #fff #404040; }
+  .body { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* file:// 로 열었을 때 경고 */
+  .env-warn {
+    font-size: 18px; padding: 6px 8px; color: #ffd24a;
+    background: #2a2200; border: 1px solid #7a6200;
+  }
+  .env-warn[hidden] { display: none; }
+
+  /* ---- 윈앰프 안에 들어간 투명 CD 플레이어 ---- */
+  .cd-stage {
+    padding: 14px;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(160,110,255,.45), transparent 55%),
+      radial-gradient(circle at 80% 90%, rgba(40,200,255,.25), transparent 50%),
+      #120a26;
+    border: 2px solid; border-color: #101014 #6e6e7c #6e6e7c #101014;
+  }
+  .cd-panel {
+    position: relative; padding: 16px 16px 12px; border-radius: 22px;
+    background: linear-gradient(145deg, rgba(255,255,255,.18), rgba(255,255,255,.04));
+    border: 1px solid rgba(255,255,255,.3);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.5),
+                inset 0 -16px 30px rgba(120,80,255,.15);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    overflow: hidden;
+  }
+  /* 유리 상단 반사광 */
+  .cd-panel::before {
+    content: ""; position: absolute; inset: 0 0 55% 0;
+    background: linear-gradient(180deg, rgba(255,255,255,.2), transparent);
+    pointer-events: none;
+  }
+  .cd-tray {
+    width: 210px; height: 210px; border-radius: 50%; padding: 8px;
+    background: radial-gradient(circle, rgba(0,0,0,.45), rgba(0,0,0,.2));
+    box-shadow: inset 0 4px 12px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,255,.2);
+  }
+  /* 원형 CD : 이미지가 없을 때도 CD 처럼 보이도록 기본 배경을 둔다 */
+  .cd {
+    position: relative; width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
+    background: conic-gradient(from 20deg, #2b2147, #5b4a9a, #1d3a5c, #7a68c8, #2b2147);
+    box-shadow: 0 0 0 3px rgba(255,255,255,.18), 0 8px 20px rgba(0,0,0,.6);
+    animation: cd-spin 6s linear infinite;      /* 항상 걸어두고 */
+    animation-play-state: paused;               /* 멈춘 상태로 시작 */
+  }
+  .cd.spinning { animation-play-state: running; }   /* PLAYING 일 때만 회전 */
+  @keyframes cd-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* 앨범 커버는 정사각형으로 업로드되므로 원 안에 꽉 채운다 */
+  .cd img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; display: block; visibility: hidden;
+  }
+  .cd::after {   /* CD 반사광 */
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(255,255,255,0), rgba(255,255,255,.35) 10%, rgba(255,255,255,0) 22%,
+      rgba(120,200,255,.25) 40%, rgba(255,255,255,0) 55%, rgba(255,255,255,.35) 72%, rgba(255,255,255,0) 85%);
+    mix-blend-mode: screen; pointer-events: none;
+  }
+  .cd-hole {   /* 가운데 구멍 */
+    position: absolute; left: 50%; top: 50%; width: 22%; height: 22%;
+    transform: translate(-50%, -50%); border-radius: 50%; z-index: 2;
+    background: radial-gradient(circle, #0b0618 0 38%, rgba(255,255,255,.55) 40% 52%, rgba(255,255,255,.15) 54% 100%);
+    box-shadow: 0 0 0 2px rgba(255,255,255,.35), inset 0 0 10px rgba(0,0,0,.8);
+  }
+  .cd-meta { text-align: center; z-index: 1; max-width: 100%; }
+  .cd-meta .t { font-size: 26px; line-height: 1; color: #fff; text-shadow: 0 0 8px rgba(160,120,255,.8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cd-meta .a { font-size: 19px; color: rgba(255,255,255,.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---- 전광판 (LCD) ---- */
+  .lcd {
+    background: var(--lcd-bg);
+    border: 2px solid; border-color: #101014 #6e6e7c #6e6e7c #101014;
+    padding: 8px 10px; display: grid; grid-template-columns: 118px 1fr; gap: 10px;
+    position: relative; overflow: hidden;
+  }
+  .lcd::after {  /* CRT 스캔라인 */
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.28) 0 1px, transparent 1px 3px);
+  }
+  .time {
+    font-size: 50px; line-height: .95; letter-spacing: 2px; white-space: nowrap;
+    text-shadow: 0 0 6px var(--neon), 0 0 16px rgba(57,255,20,.6);
+  }
+  .info { display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
+  .status { font-size: 18px; color: var(--neon-dim); display: flex; justify-content: space-between; gap: 6px; }
+  .status b { color: var(--neon); font-weight: normal; text-shadow: 0 0 6px var(--neon); white-space: nowrap; }
+
+  /* 흐르는 전광판 글씨
+     JS 가 글자 폭/전광판 폭을 재서 --from, --to, --dur 를 넣어준다.
+     글이 짧으면 .scroll 이 없어서 고정 표시 */
+  .marquee { overflow: hidden; white-space: nowrap; font-size: 24px; text-shadow: 0 0 6px var(--neon); }
+  .marquee span { display: inline-block; will-change: transform; }
+  .marquee.scroll span { animation: marquee var(--dur, 10s) linear infinite; }
+  @keyframes marquee {
+    from { transform: translateX(var(--from, 0)); }
+    to   { transform: translateX(var(--to, 0)); }
+  }
+
+  /* ---- 진행바 ---- */
+  .seek {
+    height: 10px; background: var(--lcd-bg); cursor: pointer;
+    border: 2px solid; border-color: #101014 #6e6e7c #6e6e7c #101014;
+  }
+  .seek-fill { height: 100%; width: 0%; background: var(--neon); box-shadow: 0 0 8px var(--neon); }
+
+  /* ---- 컨트롤 ---- */
+  .controls { display: flex; gap: 4px; align-items: center; }
+  .btn {
+    flex: 1; font-size: 24px; padding: 2px 0 4px; color: #111; background: var(--chrome-hi);
+    border: 2px solid; border-color: #fff #404040 #404040 #fff; cursor: pointer;
+  }
+  .btn:active { border-color: #404040 #fff #fff #404040; padding-top: 4px; padding-bottom: 2px; }
+  .btn:focus-visible, .tb-btn:focus-visible { outline: 2px dashed var(--neon); outline-offset: 2px; }
+  .vol { width: 80px; accent-color: var(--neon); }
+
+  .pl-select {
+    width: 100%; font-family: var(--font-retro); font-size: 22px; padding: 2px 6px;
+    color: var(--neon); background: var(--lcd-bg); cursor: pointer;
+    border: 2px solid; border-color: #101014 #6e6e7c #6e6e7c #101014;
+  }
+
+  /* ---- 플레이리스트 ---- */
+  .playlist {
+    background: var(--lcd-bg); height: 220px; overflow-y: auto; font-size: 22px; user-select: none;
+    border: 2px solid; border-color: #101014 #6e6e7c #6e6e7c #101014;
+  }
+  .playlist::-webkit-scrollbar { width: 14px; }
+  .playlist::-webkit-scrollbar-track { background: #1a1a20; }
+  .playlist::-webkit-scrollbar-thumb { background: var(--chrome-hi); border: 2px solid; border-color: #fff #404040 #404040 #fff; }
+  .row { display: flex; gap: 8px; padding: 1px 8px; cursor: pointer; white-space: nowrap; }
+  .row .no { color: var(--neon-dim); min-width: 28px; }
+  .row .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .row:hover { background: rgba(57,255,20,.1); }
+  .row.selected { background: rgba(57,255,20,.22); }
+  .row.current { background: var(--neon); color: #021002; }
+  .row.current .no { color: #021002; }
+  .notice { padding: 12px; color: var(--neon-dim); }
+
+  /* =========================================================
+   * 4. 관리(CRUD) 창 — 윈도우 95 스타일
+   * ========================================================= */
+  .modal {
+    position: fixed; inset: 0; z-index: 50; padding: 12px;
+    background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center;
+  }
+  .modal[hidden] { display: none; }
+  .win {
+    width: min(720px, 100%); max-height: 92vh; display: flex; flex-direction: column;
+    background: var(--chrome-hi); color: #111; font-size: 20px;
+    border: 2px solid; border-color: #fff #404040 #404040 #fff;
+  }
+  .tabs { display: flex; gap: 2px; padding: 6px 6px 0; flex-wrap: wrap; }
+  .tab {
+    font-size: 20px; padding: 2px 12px; color: #111; background: #bdb9b0; cursor: pointer;
+    border: 2px solid; border-color: #fff #404040 transparent #fff;
+  }
+  .tab.active { background: #fff; font-weight: bold; }
+  .mgr-body {
+    flex: 1; overflow: auto; margin: 0 6px 6px; padding: 10px; background: #c8c4bc;
+    border: 2px solid; border-color: #404040 #fff #fff #404040;
+  }
+  .card { background: #d9d6cf; padding: 10px; margin-bottom: 10px; border: 1px solid #8a8780; }
+  .card h3 { margin: 0 0 8px; font-size: 22px; font-weight: normal; }
+  .fld { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+  .fld span { font-size: 18px; color: #333; }
+  .fld input[type=text], .fld select {
+    font-family: var(--font-retro); font-size: 20px; padding: 3px 6px; color: #111; background: #fff;
+    border: 2px solid; border-color: #404040 #fff #fff #404040;
+  }
+  .img-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .thumb { width: 36px; height: 36px; object-fit: cover; background: #888; border: 1px solid #444; flex: none; }
+  .thumb.big { width: 76px; height: 76px; }
+  .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .wbtn {
+    font-size: 19px; padding: 2px 12px 3px; color: #111; background: var(--chrome-hi); cursor: pointer;
+    border: 2px solid; border-color: #fff #404040 #404040 #fff;
+  }
+  .wbtn:active { border-color: #404040 #fff #fff #404040; }
+  .wbtn:disabled { color: #888; cursor: default; }
+  .wbtn.danger { color: #a00000; }
+  .list { background: #fff; border: 2px solid; border-color: #404040 #fff #fff #404040; }
+  .item { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-bottom: 1px solid #ccc; }
+  .item.sel { background: #fff4b8; }
+  .item .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .item b { font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item small { color: #666; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .no { color: #666; min-width: 24px; }
+  .empty { padding: 14px; color: #666; }
+  .msg { margin-top: 8px; font-size: 18px; color: #0a5a0a; white-space: pre-wrap; }
+  .msg.err { color: #b00000; }
+
+  @media (prefers-reduced-motion: reduce) { .marquee.scroll span { animation: none; } }
+</style>
+</head>
+<body>
+
+<!-- 유튜브 IFrame API 가 이 div 를 iframe 으로 교체합니다 (화면에는 거의 투명) -->
+<div id="yt-holder"><div id="yt-player"></div></div>
+
+<!-- ================= 윈앰프 본체 (안에 CD 플레이어 포함) ================= -->
+<main class="winamp" aria-label="Winamp style player">
+  <div class="titlebar">
+    <span>WINAMP</span>
+    <span class="tb-right">
+      <button class="tb-btn" id="btn-manage" title="곡/앨범/가수/재생목록 편집">⚙ 관리</button>
+    </span>
+  </div>
+
+  <div class="body">
+    <div class="env-warn" id="env-warn" hidden>
+      ⚠ 파일을 더블클릭(file://)으로 열면 유튜브 재생이 막힙니다.<br>
+      VS Code Live Server 같은 로컬 서버(http://localhost)나 호스팅 주소로 열어주세요.
+    </div>
+
+    <!-- 투명 CD 플레이어 -->
+    <section class="cd-stage" aria-label="CD player">
+      <div class="cd-panel">
+        <div class="cd-tray">
+          <div class="cd" id="cd">
+            <img id="cover" alt="앨범 커버" />
+            <div class="cd-hole"></div>
+          </div>
+        </div>
+        <div class="cd-meta">
+          <div class="t" id="cd-title">Loading...</div>
+          <div class="a" id="cd-artist">&nbsp;</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 전광판 -->
+    <div class="lcd">
+      <div class="time" id="time">00:00</div>
+      <div class="info">
+        <div class="status">
+          <b id="state">STOPPED</b>
+          <span id="duration">/ 00:00</span>
+        </div>
+        <div class="marquee" id="marquee"><span id="marquee-text">Connecting...</span></div>
+      </div>
+    </div>
+
+    <div class="seek" id="seek" title="Seek"><div class="seek-fill" id="seek-fill"></div></div>
+
+    <div class="controls">
+      <button class="btn" id="btn-prev" title="이전 곡">|◀</button>
+      <button class="btn" id="btn-play" title="재생">▶</button>
+      <button class="btn" id="btn-pause" title="일시정지">❚❚</button>
+      <button class="btn" id="btn-next" title="다음 곡">▶|</button>
+      <input class="vol" id="vol" type="range" min="0" max="100" value="80" title="Volume" aria-label="Volume" />
+    </div>
+
+    <select class="pl-select" id="pl-select" aria-label="Select playlist">
+      <option value="all">[ 전체 곡 ]</option>
+    </select>
+
+    <div class="playlist" id="playlist" role="listbox" aria-label="Playlist">
+      <div class="notice">Loading playlist...</div>
+    </div>
+  </div>
+</main>
+
+<!-- ================= 관리(CRUD) 창 ================= -->
+<div class="modal" id="modal" hidden>
+  <div class="win" role="dialog" aria-modal="true" aria-label="데이터 관리">
+    <div class="titlebar">
+      <span>MANAGER</span>
+      <button class="tb-btn" id="btn-close" title="닫기">✕</button>
+    </div>
+    <div class="tabs" id="tabs">
+      <button class="tab" data-tab="music">곡</button>
+      <button class="tab" data-tab="album">앨범</button>
+      <button class="tab" data-tab="artist">가수</button>
+      <button class="tab" data-tab="playlist">재생목록</button>
+      <button class="tab" data-tab="tracks">재생목록 곡 구성</button>
+    </div>
+    <div class="mgr-body" id="mgr-body"></div>
+  </div>
+</div>
+
+<!-- Supabase JS SDK (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+/* =========================================================
+ * [설정] Supabase 접속 정보
+ *  - SUPABASE_URL 은 프로젝트 기본 주소만 (끝에 /rest/v1/ 없이)
+ * ========================================================= */
+const SUPABASE_URL = "https://rtvvajhsnwkkrmncyfbs.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0dnZhamhzbndra3JtbmN5ZmJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NjkwMTEsImV4cCI6MjEwNzA0NTAxMX0.O2aLLeazv_FhUhbVAkp4vz3pw8GPb_683dUu7Et1Cwk";
+
+/* 앨범 커버 업로드용 스토리지 버킷 이름 (Supabase Storage 에서 "Public bucket" 으로 만들어 두세요) */
+const STORAGE_BUCKET = "album-covers";
+/* 업로드 시 리사이즈할 정사각형 한 변의 최대 크기(px) */
+const COVER_SIZE = 600;
+
+/* =========================================================
+ * 전역 상태
+ * ========================================================= */
+let sb = null;             // Supabase 클라이언트
+let tracks = [];           // 현재 화면에 표시/재생 중인 곡 목록
+let allTracks = [];        // music 테이블 전체 곡
+let currentIndex = 0;      // 현재 곡 인덱스
+let selectedIndex = -1;    // 플레이리스트에서 한 번 클릭한 행
+let player = null;         // YT.Player
+let ytReady = false;       // 유튜브 API 준비 여부
+let dataReady = false;     // 곡 데이터 준비 여부
+let timerId = null;        // 재생시간 갱신 타이머
+let wantAutoplay = false;  // API 준비 전에 요청된 자동재생 여부
+let errorStreak = 0;       // 연속 재생 오류 횟수 (무한 건너뛰기 방지)
+let lastMarquee = "";      // 전광판에 마지막으로 표시한 문구
+
+const $ = (id) => document.getElementById(id);
+const el = {
+  cd: $("cd"), cover: $("cover"), cdTitle: $("cd-title"), cdArtist: $("cd-artist"),
+  time: $("time"), duration: $("duration"), state: $("state"),
+  marquee: $("marquee"), marqueeText: $("marquee-text"),
+  seek: $("seek"), seekFill: $("seek-fill"),
+  playlist: $("playlist"), vol: $("vol"), plSelect: $("pl-select"),
+};
+
+/* =========================================================
+ * 유틸
+ * ========================================================= */
+function fmt(sec) {                       // 초 → "mm:ss"
+  sec = Math.max(0, Math.floor(sec || 0));
+  return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
+}
+function getYouTubeId(url) {              // 유튜브 URL → 11자리 영상 ID
+  if (!url) return null;
+  const m = String(url).match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([A-Za-z0-9_-]{11})/);
+  if (m) return m[1];
+  return /^[A-Za-z0-9_-]{11}$/.test(String(url).trim()) ? String(url).trim() : null;
+}
+function pickOne(v) { return Array.isArray(v) ? v[0] : v; }   // 조인 결과가 배열이든 객체든 처리
+function esc(s) {                         // HTML 이스케이프
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+/** Supabase 오류를 사람이 읽기 쉬운 문장으로 */
+function explain(err) {
+  const m = (err && err.message) || String(err);
+  if (err && err.code === "23503") return "다른 데이터가 이 항목을 참조하고 있어서 처리할 수 없습니다.\n(예: 곡이 남아있는 가수/앨범은 삭제 전에 곡의 가수/앨범을 바꿔주세요)";
+  if (/Bucket not found/i.test(m)) return `스토리지 버킷 "${STORAGE_BUCKET}" 이(가) 없습니다.\nSupabase → Storage 에서 Public 버킷을 만들어주세요.`;
+  if (/row-level security/i.test(m)) return m + "\n(스토리지 업로드 정책 또는 RLS 설정을 확인하세요)";
+  return m;
+}
+
+/* =========================================================
+ * 1) 곡 데이터 조회 (music + artist + album 조인)
+ * ========================================================= */
+const MUSIC_SELECT = "id, name, youtube_url, artist(name), album(cover_url)";
+
+/** music 행(조인 결과 포함) → 화면용 곡 객체 */
+function mapMusic(row) {
+  return {
+    id: row.id,
+    title: row.name,
+    artist: pickOne(row.artist)?.name ?? "Unknown Artist",
+    cover: pickOne(row.album)?.cover_url ?? "",
+    videoId: getYouTubeId(row.youtube_url),
+  };
+}
+
+async function fetchAllMusic() {
+  const { data, error } = await sb.from("music").select(MUSIC_SELECT).order("id", { ascending: true });
+  if (error) throw error;
+  return (data || []).map(mapMusic);
+}
+
+/** 재생목록 하나의 곡들을 track_order 순서로 조회 (playlist_track → music → artist/album 중첩 조인) */
+async function fetchPlaylistTracks(playlistId) {
+  const { data, error } = await sb
+    .from("playlist_track")
+    .select("track_order, music(" + MUSIC_SELECT + ")")
+    .eq("playlist_id", playlistId)
+    .order("track_order", { ascending: true });
+  if (error) throw error;
+  return (data || []).map((r) => pickOne(r.music)).filter(Boolean).map(mapMusic);
+}
+
+/** playlist 테이블 → 드롭다운 (이전 선택을 최대한 유지) */
+async function fillPlaylistSelect() {
+  const prev = el.plSelect.value;
+  const { data, error } = await sb.from("playlist").select("id, name").order("id", { ascending: true });
+  if (error) throw error;
+  el.plSelect.innerHTML = '<option value="all">[ 전체 곡 ]</option>';
+  (data || []).forEach((p) => {
+    const opt = document.createElement("option");
+    opt.value = p.id; opt.textContent = p.name;
+    el.plSelect.appendChild(opt);
+  });
+  const exists = [...el.plSelect.options].some((o) => o.value === prev);
+  el.plSelect.value = exists ? prev : "all";
+}
+
+/* =========================================================
+ * 2) 플레이리스트 렌더링
+ * ========================================================= */
+function renderPlaylist() {
+  if (!tracks.length) { el.playlist.innerHTML = '<div class="notice">곡이 없습니다. 우측 상단 [⚙ 관리]에서 추가하세요.</div>'; return; }
+  el.playlist.innerHTML = tracks.map((t, i) => `
+    <div class="row" data-i="${i}" role="option">
+      <span class="no">${i + 1}.</span>
+      <span class="nm">${esc(t.artist)} - ${esc(t.title)}</span>
+    </div>`).join("");
+  highlight();
+}
+function highlight() {
+  el.playlist.querySelectorAll(".row").forEach((r) => {
+    const i = Number(r.dataset.i);
+    r.classList.toggle("current", i === currentIndex);
+    r.classList.toggle("selected", i === selectedIndex && i !== currentIndex);
+  });
+  const cur = el.playlist.querySelector(".row.current");
+  if (cur) cur.scrollIntoView({ block: "nearest" });
+}
+// 한 번 클릭 = 선택, 더블클릭 = 재생
+el.playlist.addEventListener("click", (e) => {
+  const row = e.target.closest(".row"); if (!row) return;
+  selectedIndex = Number(row.dataset.i); highlight();
+});
+el.playlist.addEventListener("dblclick", (e) => {
+  const row = e.target.closest(".row"); if (!row) return;
+  errorStreak = 0; loadTrack(Number(row.dataset.i), true);
+});
+
+/* 재생목록 드롭다운 변경 */
+el.plSelect.addEventListener("change", async () => {
+  const wasPlaying = ytReady && player && player.getPlayerState() === YT.PlayerState.PLAYING;
+  try {
+    el.playlist.innerHTML = '<div class="notice">Loading playlist...</div>';
+    const v = el.plSelect.value;
+    const list = v === "all" ? allTracks : await fetchPlaylistTracks(v);
+    tracks = list; currentIndex = 0; selectedIndex = -1;
+    renderPlaylist();
+    if (!tracks.length) {
+      if (ytReady && player) player.stopVideo();
+      setState("STOPPED", false); setMarquee("Empty playlist"); return;
+    }
+    errorStreak = 0; loadTrack(0, wasPlaying);
+  } catch (err) {
+    console.error(err);
+    el.playlist.innerHTML = `<div class="notice">재생목록을 불러오지 못했습니다.<br>${esc(explain(err))}</div>`;
+  }
+});
+
+/* =========================================================
+ * 3) 전광판 / CD 표시
+ * ========================================================= */
+
+/** 전광판 문구 설정. 문구가 바뀔 때만 다시 계산하므로 흐르다가 초기화되지 않는다 */
+function setMarquee(text) {
+  if (text === lastMarquee) return;       // 같은 문구면 아무것도 안 함 (깜빡임/리셋 방지)
+  lastMarquee = text;
+  el.marqueeText.textContent = text;
+  el.marquee.classList.remove("scroll");
+  requestAnimationFrame(() => {
+    const boxW = el.marquee.clientWidth, textW = el.marqueeText.offsetWidth;
+    if (textW <= boxW) return;            // 짧은 글은 고정 표시
+    el.marquee.style.setProperty("--from", boxW + "px");     // 오른쪽 끝에서 등장
+    el.marquee.style.setProperty("--to", -textW + "px");     // 왼쪽 끝으로 퇴장
+    el.marquee.style.setProperty("--dur", (boxW + textW) / 55 + "s");   // 일정 속도(55px/s)
+    el.marquee.classList.add("scroll");
+  });
+}
+
+/** 앨범 커버 표시. 주소 뒤에 아무것도 붙이지 않는다(리사이즈는 업로드 시점에 이미 끝남) */
+function setCover(url) {
+  const img = el.cover;
+  img.onload = () => { img.style.visibility = "visible"; };
+  img.onerror = () => { img.style.visibility = "hidden"; };   // 실패하면 기본 CD 무늬가 보임
+  img.style.visibility = "hidden";
+  if (!url) { img.removeAttribute("src"); return; }
+  img.src = url;
+}
+
+function showTrackInfo(t) {
+  setMarquee(`${t.artist} - ${t.title}`);
+  el.cdTitle.textContent = t.title;
+  el.cdArtist.textContent = t.artist;
+  setCover(t.cover);
+}
+function setState(label, spinning) {
+  el.state.textContent = label;
+  el.cd.classList.toggle("spinning", spinning);   // CD 회전 on/off
+}
+
+/* =========================================================
+ * 4) 곡 로드 / 재생 (YouTube IFrame Player API)
+ * ========================================================= */
+function loadTrack(index, autoplay) {
+  if (!tracks.length) return;
+  currentIndex = (index + tracks.length) % tracks.length;   // 순환
+  selectedIndex = -1;
+
+  const t = tracks[currentIndex];
+  showTrackInfo(t);
+  highlight();
+  el.time.textContent = "00:00";
+  el.duration.textContent = "/ 00:00";
+  el.seekFill.style.width = "0%";
+
+  if (!ytReady || !player) { wantAutoplay = autoplay; return; }
+
+  if (!t.videoId) {                       // 유튜브 주소가 잘못된 곡
+    setState("BAD URL", false);
+    if (autoplay && ++errorStreak < tracks.length) setTimeout(() => loadTrack(currentIndex + 1, true), 800);
+    return;
+  }
+  if (autoplay) player.loadVideoById(t.videoId);
+  else { player.cueVideoById(t.videoId); setState("STOPPED", false); }
+}
+
+function initFirstTrack() {
+  if (!dataReady || !tracks.length) return;
+  currentIndex = 0;
+  if (!ytReady) { showTrackInfo(tracks[0]); highlight(); return; }
+  loadTrack(0, false);
+}
+
+/** 유튜브 API 로드 완료 시 자동 호출되는 전역 콜백 */
+function onYouTubeIframeAPIReady() {
+  const vars = { playsinline: 1, controls: 0, disablekb: 1, rel: 0 };
+  if (location.protocol.startsWith("http")) vars.origin = location.origin;   // file:// 이면 생략
+  player = new YT.Player("yt-player", {
+    width: "200", height: "200", playerVars: vars,
+    events: {
+      onReady: () => {
+        ytReady = true;
+        player.setVolume(Number(el.vol.value));
+        if (dataReady) loadTrack(currentIndex, wantAutoplay);
+      },
+      onStateChange: onPlayerStateChange,
+      onError: onPlayerError,
+    },
+  });
+}
+window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+/** 유튜브 오류 코드 → 설명 */
+function ytErrorText(code) {
+  return ({
+    2: "잘못된 영상 ID/주소",
+    5: "HTML5 플레이어 오류",
+    100: "영상을 찾을 수 없거나 비공개",
+    101: "영상 소유자가 외부 재생을 허용하지 않음",
+    150: "영상 소유자가 외부 재생을 허용하지 않음",
+    153: "플레이어 설정 오류 - file:// 로 열었거나 Referer 가 차단됨. http(s) 주소로 여세요",
+  })[code] || "알 수 없는 오류";
+}
+
+/** 재생 오류: 영상 자체 문제(100/101/150)만 다음 곡으로 건너뛰고, 연속 실패 시 멈춘다 */
+function onPlayerError(e) {
+  const code = e.data;
+  console.warn("YouTube error", code, ytErrorText(code), tracks[currentIndex]);
+  setState("ERROR " + code, false);
+  stopTimer();
+  const skippable = [100, 101, 150].includes(code);
+  if (skippable && ++errorStreak < tracks.length) {
+    setTimeout(() => loadTrack(currentIndex + 1, true), 1200);
+  } else {
+    setMarquee(`ERROR ${code}: ${ytErrorText(code)}`);   // 더 이상 넘어가지 않고 원인을 표시
+  }
+}
+
+function onPlayerStateChange(e) {
+  switch (e.data) {
+    case YT.PlayerState.PLAYING:
+      errorStreak = 0;
+      setState("PLAYING", true); startTimer(); break;
+    case YT.PlayerState.PAUSED:
+      setState("PAUSED", false); stopTimer(); break;
+    case YT.PlayerState.BUFFERING:
+      el.state.textContent = "BUFFERING"; break;
+    case YT.PlayerState.ENDED:
+      setState("STOPPED", false); stopTimer();
+      loadTrack(currentIndex + 1, true);        // 곡이 끝나면 자동으로 다음 곡
+      break;
+    case YT.PlayerState.CUED:
+      setState("STOPPED", false); updateTime(); break;
+  }
+}
+
+/* ---- 재생 시간 ---- */
+function updateTime() {
+  if (!player || !player.getCurrentTime) return;
+  const cur = player.getCurrentTime(), dur = player.getDuration();
+  el.time.textContent = fmt(cur);
+  el.duration.textContent = "/ " + fmt(dur);
+  el.seekFill.style.width = dur ? Math.min(100, (cur / dur) * 100) + "%" : "0%";
+}
+function startTimer() { stopTimer(); updateTime(); timerId = setInterval(updateTime, 250); }
+function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
+
+/* =========================================================
+ * 5) 미디어 버튼 / 볼륨 / 진행바
+ * ========================================================= */
+$("btn-prev").addEventListener("click", () => {
+  errorStreak = 0;
+  if (player && ytReady && player.getCurrentTime() > 3) { player.seekTo(0, true); return; }
+  loadTrack(currentIndex - 1, true);
+});
+$("btn-next").addEventListener("click", () => { errorStreak = 0; loadTrack(currentIndex + 1, true); });
+$("btn-play").addEventListener("click", () => {
+  if (!player || !ytReady || !tracks.length) return;
+  errorStreak = 0;
+  if (selectedIndex >= 0 && selectedIndex !== currentIndex) { loadTrack(selectedIndex, true); return; }
+  const st = player.getPlayerState();
+  if (st === YT.PlayerState.PAUSED) player.playVideo();
+  else if (st !== YT.PlayerState.PLAYING) loadTrack(currentIndex, true);   // 정지/대기/오류 상태 → 현재 곡 처음부터
+});
+$("btn-pause").addEventListener("click", () => { if (player && ytReady) player.pauseVideo(); });
+el.vol.addEventListener("input", () => { if (player && ytReady) player.setVolume(Number(el.vol.value)); });
+el.seek.addEventListener("click", (e) => {
+  if (!player || !ytReady) return;
+  const dur = player.getDuration(); if (!dur) return;
+  const r = el.seek.getBoundingClientRect();
+  player.seekTo(dur * ((e.clientX - r.left) / r.width), true); updateTime();
+});
+
+/* =========================================================
+ * 6) 편집 후 화면 데이터 새로고침 (재생 중인 곡은 최대한 유지)
+ * ========================================================= */
+async function refreshData() {
+  const curId = tracks[currentIndex]?.id;
+  allTracks = await fetchAllMusic();
+  await fillPlaylistSelect();
+  const v = el.plSelect.value;
+  tracks = v === "all" ? allTracks : await fetchPlaylistTracks(v);
+  selectedIndex = -1;
+  dataReady = true;
+  renderPlaylist();
+  if (!tracks.length) {
+    if (ytReady && player) player.stopVideo();
+    setState("STOPPED", false); setMarquee("No tracks"); el.cdTitle.textContent = "No tracks"; el.cdArtist.innerHTML = "&nbsp;"; setCover("");
+    return;
+  }
+  const idx = tracks.findIndex((t) => t.id === curId);
+  if (idx >= 0) { currentIndex = idx; showTrackInfo(tracks[idx]); highlight(); }   // 재생은 끊지 않음
+  else { errorStreak = 0; loadTrack(0, false); }
+}
+
+/* =========================================================
+ * 7) 앨범 커버 업로드 (업로드 전에 정사각형으로 잘라서 리사이즈)
+ * ========================================================= */
+async function resizeToSquare(file) {
+  const bmp = await createImageBitmap(file);
+  const side = Math.min(bmp.width, bmp.height);          // 가운데 기준 정사각형으로 자르기(cover)
+  const sx = (bmp.width - side) / 2, sy = (bmp.height - side) / 2;
+  const size = Math.min(COVER_SIZE, side);               // 원본보다 키우지는 않음
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(bmp, sx, sy, side, side, 0, 0, size, size);
+  return new Promise((res, rej) =>
+    canvas.toBlob((b) => (b ? res(b) : rej(new Error("이미지 변환에 실패했습니다."))), "image/jpeg", 0.88));
+}
+async function uploadCover(file) {
+  const blob = await resizeToSquare(file);
+  const path = `album_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;   // 파일명은 영문/숫자만
+  const { error } = await sb.storage.from(STORAGE_BUCKET).upload(path, blob, { contentType: "image/jpeg", cacheControl: "31536000" });
+  if (error) throw error;
+  return sb.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+/* =========================================================
+ * 8) 관리(CRUD) 창
+ *    - 곡 / 앨범 / 가수 / 재생목록 : 같은 코드로 추가·수정·삭제 (SCHEMA 설정 기반)
+ *    - 재생목록 곡 구성(playlist_track) : 곡 추가, 순서 변경(▲▼), 삭제
+ * ========================================================= */
+const SCHEMA = {
+  music: {
+    label: "곡", select: "id, name, youtube_url, artist_id, album_id, artist(name), album(name)",
+    fields: [
+      { key: "name", label: "곡 제목", type: "text", required: true },
+      { key: "youtube_url", label: "유튜브 URL", type: "text", required: true },
+      { key: "artist_id", label: "가수", type: "ref", ref: "artist" },
+      { key: "album_id", label: "앨범", type: "ref", ref: "album" },
+    ],
+    title: (r) => r.name,
+    sub: (r) => `${pickOne(r.artist)?.name ?? "-"} · ${pickOne(r.album)?.name ?? "-"}`,
+  },
+  album: {
+    label: "앨범", select: "id, name, cover_url, artist_id, artist(name)",
+    fields: [
+      { key: "name", label: "앨범 이름", type: "text", required: true },
+      { key: "artist_id", label: "가수", type: "ref", ref: "artist" },
+      { key: "cover_url", label: "커버 이미지", type: "image" },
+    ],
+    title: (r) => r.name, sub: (r) => pickOne(r.artist)?.name ?? "-", thumb: (r) => r.cover_url,
+  },
+  artist: {
+    label: "가수", select: "id, name",
+    fields: [{ key: "name", label: "가수 이름", type: "text", required: true }],
+    title: (r) => r.name, sub: () => "",
+  },
+  playlist: {
+    label: "재생목록", select: "id, name",
+    fields: [{ key: "name", label: "재생목록 이름", type: "text", required: true }],
+    title: (r) => r.name, sub: () => "",
+  },
+};
+
+const mgr = { tab: "music", editingId: null, rows: [], refs: {}, dirty: false, trackPl: null, playlists: [], musicList: [], trackRows: [] };
+const mgrBody = $("mgr-body");
+
+function mgrMsg(text, isErr) {
+  const m = $("mgr-msg"); if (!m) return;
+  m.textContent = text || ""; m.classList.toggle("err", !!isErr);
+}
+
+/* ---- 열기 / 닫기 ---- */
+$("btn-manage").addEventListener("click", () => {
+  if (!sb) return;
+  $("modal").hidden = false; mgr.dirty = false; openTab(mgr.tab);
+});
+function closeModal() {
+  $("modal").hidden = true;
+  if (mgr.dirty) { mgr.dirty = false; refreshData().catch((e) => console.error(e)); }   // 바뀐 내용이 있으면 화면 갱신
+}
+$("btn-close").addEventListener("click", closeModal);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("modal").hidden) closeModal(); });
+
+/* ---- 탭 ---- */
+$("tabs").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-tab]"); if (b) openTab(b.dataset.tab);
+});
+
+async function openTab(tab) {
+  mgr.tab = tab; mgr.editingId = null;
+  document.querySelectorAll("#tabs .tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+  mgrBody.innerHTML = '<div class="empty">Loading...</div>';
+  try {
+    if (tab === "tracks") { await loadTracksTab(); return; }
+    const cfg = SCHEMA[tab];
+    // 참조(select) 필드용 목록 (가수/앨범)
+    for (const f of cfg.fields.filter((f) => f.type === "ref")) {
+      const { data, error } = await sb.from(f.ref).select("id, name").order("id");
+      if (error) throw error;
+      mgr.refs[f.ref] = data || [];
+    }
+    const { data, error } = await sb.from(tab).select(cfg.select).order("id", { ascending: true });
+    if (error) throw error;
+    mgr.rows = data || [];
+    drawCrud();
+  } catch (err) {
+    mgrBody.innerHTML = `<div class="card"><div class="msg err">${esc(explain(err))}</div></div>`;
+  }
+}
+
+/* ---- 일반 CRUD 화면 ---- */
+function drawCrud() {
+  const cfg = SCHEMA[mgr.tab];
+  const editing = mgr.rows.find((r) => r.id === mgr.editingId) || null;
+
+  const fields = cfg.fields.map((f) => {
+    const val = editing ? editing[f.key] : null;
+    if (f.type === "text")
+      return `<label class="fld"><span>${f.label}</span><input type="text" name="${f.key}" value="${esc(val ?? "")}" ${f.required ? "required" : ""} autocomplete="off"></label>`;
+    if (f.type === "ref") {
+      const opts = (mgr.refs[f.ref] || []).map((o) =>
+        `<option value="${o.id}" ${String(o.id) === String(val) ? "selected" : ""}>${esc(o.name)}</option>`).join("");
+      return `<label class="fld"><span>${f.label}</span><select name="${f.key}"><option value="">(없음)</option>${opts}</select></label>`;
+    }
+    if (f.type === "image")
+      return `<div class="fld"><span>${f.label} (올리면 자동으로 정사각형 리사이즈 후 저장${editing ? " / 선택 안 하면 기존 이미지 유지" : ""})</span>
+        <div class="img-row"><img class="thumb big" id="img-preview" alt="" ${val ? `src="${esc(val)}"` : 'style="visibility:hidden"'}>
+        <input type="file" name="${f.key}" accept="image/*"></div></div>`;
+    return "";
+  }).join("");
+
+  const list = mgr.rows.map((r) => `
+    <div class="item ${r.id === mgr.editingId ? "sel" : ""}">
+      ${cfg.thumb ? `<img class="thumb" src="${esc(cfg.thumb(r) || "")}" alt="" onerror="this.style.visibility='hidden'">` : ""}
+      <div class="grow"><b>${esc(cfg.title(r))}</b><small>${esc(cfg.sub(r))}</small></div>
+      <button class="wbtn" data-act="edit" data-id="${r.id}">수정</button>
+      <button class="wbtn danger" data-act="del" data-id="${r.id}">삭제</button>
+    </div>`).join("") || '<div class="empty">아직 데이터가 없습니다.</div>';
+
+  mgrBody.innerHTML = `
+    <form id="crud-form" class="card">
+      <h3>${cfg.label} ${editing ? "수정" : "추가"}</h3>
+      ${fields}
+      <div class="btns">
+        <button class="wbtn" type="submit" id="save-btn">${editing ? "저장" : "추가"}</button>
+        ${editing ? '<button class="wbtn" type="button" data-act="cancel">취소</button>' : ""}
+      </div>
+      <div class="msg" id="mgr-msg"></div>
+    </form>
+    <div class="list">${list}</div>`;
+}
+
+/* 이미지 선택 시 미리보기 */
+mgrBody.addEventListener("change", (e) => {
+  if (e.target.type === "file" && e.target.files[0]) {
+    const p = $("img-preview");
+    if (p) { p.src = URL.createObjectURL(e.target.files[0]); p.style.visibility = "visible"; }
+  }
+  if (e.target.id === "trk-pl") { mgr.trackPl = Number(e.target.value); drawTracks().catch((er) => mgrMsg(explain(er), true)); }
+});
+
+/* 저장 (추가/수정) */
+mgrBody.addEventListener("submit", async (e) => {
+  if (e.target.id !== "crud-form") return;
+  e.preventDefault();
+  const cfg = SCHEMA[mgr.tab], form = e.target, btn = $("save-btn");
+  btn.disabled = true; mgrMsg("저장 중...");
+  try {
+    const payload = {};
+    for (const f of cfg.fields) {
+      const input = form.elements[f.key];
+      if (f.type === "text") payload[f.key] = input.value.trim();
+      else if (f.type === "ref") payload[f.key] = input.value ? Number(input.value) : null;
+      else if (f.type === "image" && input.files[0]) {
+        mgrMsg("이미지 리사이즈 및 업로드 중...");
+        payload[f.key] = await uploadCover(input.files[0]);   // 파일을 고른 경우에만 값 변경
+      }
+    }
+    if (mgr.tab === "music" && !getYouTubeId(payload.youtube_url)) throw new Error("올바른 유튜브 주소가 아닙니다.");
+
+    const q = mgr.editingId
+      ? sb.from(mgr.tab).update(payload).eq("id", mgr.editingId)
+      : sb.from(mgr.tab).insert(payload);
+    const { error } = await q;
+    if (error) throw error;
+
+    const wasEdit = !!mgr.editingId;
+    mgr.dirty = true;
+    await openTab(mgr.tab);
+    mgrMsg(wasEdit ? "수정되었습니다." : "추가되었습니다.");
+  } catch (err) {
+    console.error(err);
+    btn.disabled = false; mgrMsg(explain(err), true);
+  }
+});
+
+/* 클릭 이벤트 (수정/삭제/취소/트랙 조작) */
+mgrBody.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-act]"); if (!btn) return;
+  const act = btn.dataset.act, id = btn.dataset.id ? Number(btn.dataset.id) : null;
+  try {
+    if (act === "edit") { mgr.editingId = id; drawCrud(); mgrBody.scrollTop = 0; }
+    else if (act === "cancel") { mgr.editingId = null; drawCrud(); }
+    else if (act === "del") await deleteRow(id);
+    else if (act === "trk-add") await addTrack();
+    else if (act === "up") await moveTrack(id, -1);
+    else if (act === "down") await moveTrack(id, +1);
+    else if (act === "rm") await removeTrack(id);
+  } catch (err) { console.error(err); mgrMsg(explain(err), true); }
+});
+
+async function deleteRow(id) {
+  const warn = { music: "이 곡이 들어있는 재생목록 항목도 함께 삭제됩니다.", playlist: "이 재생목록의 곡 구성도 함께 삭제됩니다." }[mgr.tab] || "";
+  if (!confirm(`정말 삭제할까요?\n${warn}`)) return;
+  // 연결된 playlist_track 을 먼저 정리 (외래키 오류 방지)
+  if (mgr.tab === "music") { const r = await sb.from("playlist_track").delete().eq("music_id", id); if (r.error) throw r.error; }
+  if (mgr.tab === "playlist") { const r = await sb.from("playlist_track").delete().eq("playlist_id", id); if (r.error) throw r.error; }
+  const { error } = await sb.from(mgr.tab).delete().eq("id", id);
+  if (error) throw error;
+  mgr.dirty = true;
+  await openTab(mgr.tab);
+  mgrMsg("삭제되었습니다.");
+}
+
+/* ---- 재생목록 곡 구성 (playlist_track) ---- */
+async function loadTracksTab() {
+  const [pl, mu] = await Promise.all([
+    sb.from("playlist").select("id, name").order("id"),
+    sb.from("music").select("id, name, artist(name)").order("id"),
+  ]);
+  if (pl.error) throw pl.error;
+  if (mu.error) throw mu.error;
+  mgr.playlists = pl.data || []; mgr.musicList = mu.data || [];
+  if (!mgr.playlists.some((p) => p.id === mgr.trackPl)) mgr.trackPl = mgr.playlists[0]?.id ?? null;
+  await drawTracks();
+}
+
+async function drawTracks() {
+  if (!mgr.playlists.length) { mgrBody.innerHTML = '<div class="empty">먼저 [재생목록] 탭에서 재생목록을 만들어주세요.</div>'; return; }
+  const { data, error } = await sb.from("playlist_track")
+    .select("id, track_order, music(id, name, artist(name))")
+    .eq("playlist_id", mgr.trackPl).order("track_order", { ascending: true });
+  if (error) throw error;
+  mgr.trackRows = data || [];
+
+  const plOpts = mgr.playlists.map((p) => `<option value="${p.id}" ${p.id === mgr.trackPl ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+  const muOpts = mgr.musicList.map((m) => `<option value="${m.id}">${esc(pickOne(m.artist)?.name ?? "-")} - ${esc(m.name)}</option>`).join("");
+  const rows = mgr.trackRows.map((r, i) => {
+    const m = pickOne(r.music);
+    return `<div class="item">
+      <span class="no">${i + 1}</span>
+      <div class="grow"><b>${esc(m?.name ?? "(삭제된 곡)")}</b><small>${esc(pickOne(m?.artist)?.name ?? "")}</small></div>
+      <button class="wbtn" data-act="up" data-id="${r.id}" ${i === 0 ? "disabled" : ""}>▲</button>
+      <button class="wbtn" data-act="down" data-id="${r.id}" ${i === mgr.trackRows.length - 1 ? "disabled" : ""}>▼</button>
+      <button class="wbtn danger" data-act="rm" data-id="${r.id}">삭제</button>
+    </div>`;
+  }).join("") || '<div class="empty">이 재생목록에는 아직 곡이 없습니다.</div>';
+
+  mgrBody.innerHTML = `
+    <div class="card">
+      <label class="fld"><span>재생목록 선택</span><select id="trk-pl">${plOpts}</select></label>
+      <label class="fld"><span>추가할 곡</span><select id="trk-music">${muOpts || "<option value=''>(곡이 없습니다)</option>"}</select></label>
+      <div class="btns"><button class="wbtn" data-act="trk-add">+ 이 재생목록에 추가</button></div>
+      <div class="msg" id="mgr-msg"></div>
+    </div>
+    <div class="list">${rows}</div>`;
+}
+
+async function addTrack() {
+  const musicId = Number($("trk-music").value);
+  if (!musicId) throw new Error("추가할 곡을 선택하세요.");
+  const next = mgr.trackRows.reduce((mx, r) => Math.max(mx, r.track_order || 0), 0) + 1;   // 맨 뒤에 추가
+  const { error } = await sb.from("playlist_track").insert({ playlist_id: mgr.trackPl, music_id: musicId, track_order: next });
+  if (error) throw error;
+  mgr.dirty = true; await drawTracks(); mgrMsg("추가되었습니다.");
+}
+
+async function moveTrack(id, dir) {
+  const rows = mgr.trackRows.slice();
+  const i = rows.findIndex((r) => r.id === id), j = i + dir;
+  if (i < 0 || j < 0 || j >= rows.length) return;
+  [rows[i], rows[j]] = [rows[j], rows[i]];
+  // 1..n 으로 순서를 다시 매기고, 값이 달라진 행만 업데이트 (중복/빈 순번도 함께 정리됨)
+  const jobs = rows.map((r, idx) => (r.track_order === idx + 1 ? null : sb.from("playlist_track").update({ track_order: idx + 1 }).eq("id", r.id))).filter(Boolean);
+  const results = await Promise.all(jobs);
+  const bad = results.find((r) => r.error); if (bad) throw bad.error;
+  mgr.dirty = true; await drawTracks();
+}
+
+async function removeTrack(id) {
+  const { error } = await sb.from("playlist_track").delete().eq("id", id);
+  if (error) throw error;
+  mgr.dirty = true; await drawTracks(); mgrMsg("삭제되었습니다.");
+}
+
+/* =========================================================
+ * 9) 시작
+ * ========================================================= */
+(async function boot() {
+  // file:// 로 열면 유튜브가 재생을 막으므로 안내 표시
+  if (location.protocol === "file:") $("env-warn").hidden = false;
+
+  // 유튜브 IFrame API 로드
+  const tag = document.createElement("script");
+  tag.src = "https://www.youtube.com/iframe_api";
+  document.head.appendChild(tag);
+
+  try {
+    // 실수로 .../rest/v1/ 까지 붙여 넣어도 자동으로 제거
+    const url = SUPABASE_URL.replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
+    sb = supabase.createClient(url, SUPABASE_ANON_KEY);
+
+    allTracks = await fetchAllMusic();      // 최우선: music + artist + album 조인
+    tracks = allTracks;
+    dataReady = true;
+    renderPlaylist();
+    if (tracks.length) initFirstTrack();
+    else { setMarquee("No tracks"); el.cdTitle.textContent = "No tracks"; }
+
+    fillPlaylistSelect().catch((e) => console.error("Playlist load error:", e));
+  } catch (err) {
+    console.error("Supabase error:", err);
+    el.playlist.innerHTML = `<div class="notice">데이터를 불러오지 못했습니다.<br>${esc(explain(err))}</div>`;
+    setMarquee("Supabase connection error");
+    el.cdTitle.textContent = "Error";
+  }
+})();
+</script>
+</body>
+</html>
