@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Retro CD & Winamp Player</title>
+<title>CDCD</title>
 
 <!-- 레트로 폰트 (VT323 은 한글이 없어서 한글은 시스템 폰트로 대체됩니다) -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -79,39 +79,25 @@
   }
   .env-warn[hidden] { display: none; }
 
-  /* ---- 윈앰프 안에 들어간 투명 CD 플레이어 ---- */
-  .cd-stage {
-    padding: 14px;
-    background:
-      radial-gradient(circle at 30% 20%, rgba(160,110,255,.45), transparent 55%),
-      radial-gradient(circle at 80% 90%, rgba(40,200,255,.25), transparent 50%),
-      #120a26;
-    border: 2px solid; border-color: #101014 #6e6e7c #6e6e7c #101014;
-  }
+  /* ---- 윈앰프 안에 들어간 투명 CD 플레이어 ----
+     CD 를 약간의 여유(padding)만 두고 딱 맞게 감싸는 정사각형 + 두꺼운 테두리 */
   .cd-panel {
-    position: relative; padding: 16px 16px 12px; border-radius: 22px;
-    background: linear-gradient(145deg, rgba(255,255,255,.18), rgba(255,255,255,.04));
-    border: 1px solid rgba(255,255,255,.3);
-    box-shadow: 0 10px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.5),
-                inset 0 -16px 30px rgba(120,80,255,.15);
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    position: relative; align-self: center; width: fit-content;
+    padding: 10px; border-radius: 22px;
+    background: linear-gradient(145deg, rgba(190,160,255,.30), rgba(60,40,120,.40));
+    border: 7px solid rgba(225,220,255,.85);
+    box-shadow: 0 0 0 2px #101014, 0 10px 30px rgba(0,0,0,.55),
+                inset 0 2px 0 rgba(255,255,255,.6), inset 0 0 18px rgba(0,0,0,.55);
     overflow: hidden;
   }
-  /* 유리 상단 반사광 */
-  .cd-panel::before {
-    content: ""; position: absolute; inset: 0 0 55% 0;
-    background: linear-gradient(180deg, rgba(255,255,255,.2), transparent);
-    pointer-events: none;
-  }
-  .cd-tray {
-    width: 210px; height: 210px; border-radius: 50%; padding: 8px;
-    background: radial-gradient(circle, rgba(0,0,0,.45), rgba(0,0,0,.2));
-    box-shadow: inset 0 4px 12px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,255,.2);
+  /* 유리 뚜껑 반사광 (CD 위에 겹쳐서, 회전하지 않고 고정) */
+  .cd-panel::after {
+    content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    background: linear-gradient(135deg, rgba(255,255,255,.22), transparent 38%);
   }
   /* 원형 CD : 이미지가 없을 때도 CD 처럼 보이도록 기본 배경을 둔다 */
   .cd {
-    position: relative; width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
+    position: relative; display: block; width: min(228px, calc(100vw - 110px)); aspect-ratio: 1 / 1; border-radius: 50%; overflow: hidden;
     background: conic-gradient(from 20deg, #2b2147, #5b4a9a, #1d3a5c, #7a68c8, #2b2147);
     box-shadow: 0 0 0 3px rgba(255,255,255,.18), 0 8px 20px rgba(0,0,0,.6);
     animation: cd-spin 6s linear infinite;      /* 항상 걸어두고 */
@@ -137,9 +123,6 @@
     background: radial-gradient(circle, #0b0618 0 38%, rgba(255,255,255,.55) 40% 52%, rgba(255,255,255,.15) 54% 100%);
     box-shadow: 0 0 0 2px rgba(255,255,255,.35), inset 0 0 10px rgba(0,0,0,.8);
   }
-  .cd-meta { text-align: center; z-index: 1; max-width: 100%; }
-  .cd-meta .t { font-size: 26px; line-height: 1; color: #fff; text-shadow: 0 0 8px rgba(160,120,255,.8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cd-meta .a { font-size: 19px; color: rgba(255,255,255,.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ---- 전광판 (LCD) ---- */
   .lcd {
@@ -275,9 +258,9 @@
 <!-- ================= 윈앰프 본체 (안에 CD 플레이어 포함) ================= -->
 <main class="winamp" aria-label="Winamp style player">
   <div class="titlebar">
-    <span>WINAMP</span>
+    <span>CDCD</span>
     <span class="tb-right">
-      <button class="tb-btn" id="btn-manage" title="곡/앨범/가수/재생목록 편집">⚙ 관리</button>
+      <button class="tb-btn" id="btn-manage" title="관리" aria-label="관리">⚙</button>
     </span>
   </div>
 
@@ -287,19 +270,11 @@
       VS Code Live Server 같은 로컬 서버(http://localhost)나 호스팅 주소로 열어주세요.
     </div>
 
-    <!-- 투명 CD 플레이어 -->
-    <section class="cd-stage" aria-label="CD player">
-      <div class="cd-panel">
-        <div class="cd-tray">
-          <div class="cd" id="cd">
-            <img id="cover" alt="앨범 커버" />
-            <div class="cd-hole"></div>
-          </div>
-        </div>
-        <div class="cd-meta">
-          <div class="t" id="cd-title">Loading...</div>
-          <div class="a" id="cd-artist">&nbsp;</div>
-        </div>
+    <!-- 투명 CD 플레이어 (CD 를 감싸는 정사각형 케이스) -->
+    <section class="cd-panel" aria-label="CD player">
+      <div class="cd" id="cd">
+        <img id="cover" alt="앨범 커버" />
+        <div class="cd-hole"></div>
       </div>
     </section>
 
@@ -387,7 +362,7 @@ let lastMarquee = "";      // 전광판에 마지막으로 표시한 문구
 
 const $ = (id) => document.getElementById(id);
 const el = {
-  cd: $("cd"), cover: $("cover"), cdTitle: $("cd-title"), cdArtist: $("cd-artist"),
+  cd: $("cd"), cover: $("cover"),
   time: $("time"), duration: $("duration"), state: $("state"),
   marquee: $("marquee"), marqueeText: $("marquee-text"),
   seek: $("seek"), seekFill: $("seek-fill"),
@@ -543,7 +518,7 @@ function setMarquee(text) {
 function setCover(url) {
   const img = el.cover;
   img.onload = () => { img.style.visibility = "visible"; };
-  img.onerror = () => { img.style.visibility = "hidden"; };   // 실패하면 기본 CD 무늬가 보임
+  img.onerror = () => { img.style.visibility = "hidden"; console.warn("앨범 커버 로드 실패:", url); };   // 실패하면 기본 CD 무늬가 보임
   img.style.visibility = "hidden";
   if (!url) { img.removeAttribute("src"); return; }
   img.src = url;
@@ -551,8 +526,6 @@ function setCover(url) {
 
 function showTrackInfo(t) {
   setMarquee(`${t.artist} - ${t.title}`);
-  el.cdTitle.textContent = t.title;
-  el.cdArtist.textContent = t.artist;
   setCover(t.cover);
 }
 function setState(label, spinning) {
@@ -707,7 +680,7 @@ async function refreshData() {
   renderPlaylist();
   if (!tracks.length) {
     if (ytReady && player) player.stopVideo();
-    setState("STOPPED", false); setMarquee("No tracks"); el.cdTitle.textContent = "No tracks"; el.cdArtist.innerHTML = "&nbsp;"; setCover("");
+    setState("STOPPED", false); setMarquee("No tracks"); setCover("");
     return;
   }
   const idx = tracks.findIndex((t) => t.id === curId);
@@ -1031,14 +1004,13 @@ async function removeTrack(id) {
     dataReady = true;
     renderPlaylist();
     if (tracks.length) initFirstTrack();
-    else { setMarquee("No tracks"); el.cdTitle.textContent = "No tracks"; }
+    else { setMarquee("No tracks"); }
 
     fillPlaylistSelect().catch((e) => console.error("Playlist load error:", e));
   } catch (err) {
     console.error("Supabase error:", err);
     el.playlist.innerHTML = `<div class="notice">데이터를 불러오지 못했습니다.<br>${esc(explain(err))}</div>`;
     setMarquee("Supabase connection error");
-    el.cdTitle.textContent = "Error";
   }
 })();
 </script>
