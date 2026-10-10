@@ -7,6 +7,7 @@
 <!-- ===== 앱(PWA) 설정: 크롬 주소창의 설치 버튼이 뜨려면 manifest + 아이콘 + 서비스 워커가 필요 ===== -->
 <link rel="manifest" href="manifest.webmanifest" />
 <meta name="theme-color" content="#120a26" />
+<meta name="robots" content="noindex" />   <!-- 검색엔진에 노출되지 않게 -->
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 <meta name="mobile-web-app-capable" content="yes" />
@@ -311,7 +312,7 @@
   .card h3 { margin: 0 0 8px; font-size: 22px; font-weight: normal; }
   .fld { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
   .fld span { font-size: 18px; color: #333; }
-  .fld input[type=text], .fld select {
+  .fld input[type=text], .fld input[type=email], .fld input[type=password], .fld select {
     font-family: var(--font-retro); font-size: 20px; padding: 3px 6px; color: #111; background: #fff;
     border: 2px solid; border-color: #404040 #fff #fff #404040;
   }
@@ -337,6 +338,14 @@
   .msg { margin-top: 8px; font-size: 18px; color: #0a5a0a; white-space: pre-wrap; }
   .msg.err { color: #b00000; }
 
+  /* ===== 로그인 창 (로그인 전에는 앱 대신 이것만 보임) ===== */
+  body.locked .winamp { display: none; }
+  .login { position: fixed; inset: 0; z-index: 100; padding: 12px; display: flex; align-items: center; justify-content: center; }
+  .login[hidden] { display: none; }
+  .login-win { width: min(340px, 100%); }
+  .login-body { margin: 0 6px 6px; padding: 12px; background: #c8c4bc; border: 2px solid; border-color: #404040 #fff #fff #404040; }
+  .login-body .wbtn { width: 100%; padding: 5px 12px 6px; }
+
   /* ===== 바깥 여백: PC(창 너비 500px 이상)에서만 12px, 모바일은 0 ===== */
   @media (min-width: 500px) { :root { --m: 12px; } }
   @supports (height: 100dvh) { :root { --vh: 100dvh; } }
@@ -361,7 +370,7 @@
   @media (prefers-reduced-motion: reduce) { .marquee.scroll span { animation: none; } }
 </style>
 </head>
-<body>
+<body class="locked">   <!-- locked: 로그인 전에는 앱 화면을 숨김 -->
 
 <!-- 유튜브 IFrame API 가 이 div 를 iframe 으로 교체합니다 (화면에는 거의 투명) -->
 <div id="yt-holder"><div id="yt-player"></div></div>
@@ -373,6 +382,7 @@
     <span class="ttl">CDCD</span>
     <span class="grip"></span>
     <button class="tb-btn" id="btn-manage" title="관리" aria-label="관리">⚙</button>
+    <button class="tb-btn" id="btn-logout" title="로그아웃" aria-label="로그아웃"><svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 0v6.5"/><path d="M3.6 3A5.5 5.5 0 1 0 10.4 3"/></svg></button>
   </div>
 
   <div class="body">
@@ -536,6 +546,19 @@
   </div>
 </div>
 
+<!-- ================= 로그인 창 ================= -->
+<div class="login" id="login" hidden>
+  <form class="win login-win" id="login-form">
+    <div class="titlebar"><span class="grip"></span><span class="ttl">LOGIN</span><span class="grip"></span></div>
+    <div class="login-body">
+      <label class="fld"><span>이메일</span><input type="email" id="login-email" autocomplete="username" required></label>
+      <label class="fld"><span>비밀번호</span><input type="password" id="login-pw" autocomplete="current-password" required></label>
+      <button class="wbtn" type="submit" id="login-btn">로그인</button>
+      <div class="msg err" id="login-msg" role="alert"></div>
+    </div>
+  </form>
+</div>
+
 <!-- Supabase JS SDK (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -608,7 +631,7 @@ function explain(err) {
   const m = (err && err.message) || String(err);
   if (err && err.code === "23503") return "다른 데이터가 이 항목을 참조하고 있어서 처리할 수 없습니다.\n(예: 곡이 남아있는 가수/앨범은 삭제 전에 곡의 가수/앨범을 바꿔주세요)";
   if (/Bucket not found/i.test(m)) return `스토리지 버킷 "${STORAGE_BUCKET}" 이(가) 없습니다.\nSupabase → Storage 에서 Public 버킷을 만들어주세요.`;
-  if (/row-level security/i.test(m)) return m + "\n(스토리지 업로드 정책 또는 RLS 설정을 확인하세요)";
+  if (/row-level security/i.test(m)) return m + "\n(권한 오류: 로그인한 이메일이 RLS 정책에 넣은 이메일과 같은지, 스토리지 정책이 적용됐는지 확인하세요)";
   return m;
 }
 
@@ -1243,8 +1266,81 @@ async function removeTrack(id) {
 }
 
 /* =========================================================
- * 9) 시작
+ * 9) 로그인 + 시작
  * ========================================================= */
+/* ---- 로그인 (Supabase Auth: 이메일 + 비밀번호) ----
+   · 로그인 전에는 앱 화면을 숨기고 로그인 창만 보여줌
+   · 세션은 브라우저에 저장되어 앱을 다시 열어도 로그인이 유지됨
+   · 실제 접근 제한은 Supabase 의 RLS 정책이 담당함 (화면을 숨기는 것만으로는 보안이 안 됨) */
+let appStarted = false;   // 곡 데이터를 이미 불러왔는지
+
+function showLogin(msg) {
+  document.body.classList.add("locked");
+  $("login").hidden = false;
+  $("login-msg").textContent = msg || "";
+  $("login-btn").disabled = false;
+  setTimeout(() => $("login-email").focus(), 0);
+}
+function unlockApp() { $("login").hidden = true; document.body.classList.remove("locked"); }
+
+/** 로그아웃/세션 만료 시: 재생 정지, 화면 데이터 비우기, 관리 창 닫기, 로그인 창 표시 (여러 번 불러도 안전) */
+function lockApp() {
+  appStarted = false;
+  stopTimer();
+  if (ytReady && player) { try { player.stopVideo(); } catch (e) {} }
+  setState("STOPPED", false);
+  tracks = []; allTracks = []; currentIndex = 0; selectedIndex = -1; dataReady = false;
+  el.playlist.innerHTML = "";
+  el.plSelect.innerHTML = '<option value="all">All music</option>'; syncPlLabel();
+  el.marqueeText.textContent = ""; lastMarquee = "";
+  el.time.textContent = "00:00"; el.duration.textContent = "/ 00:00"; el.seekFill.style.width = "0%";
+  setCover("");
+  $("modal").hidden = true; mgr.dirty = false;
+  showLogin();
+}
+
+/** 로그인 성공 후: 곡 데이터 불러오기 (music + artist + album 조인) */
+async function startApp() {
+  if (appStarted) return;
+  appStarted = true;
+  try {
+    allTracks = await fetchAllMusic();
+    tracks = allTracks;
+    dataReady = true;
+    renderPlaylist();
+    if (tracks.length) initFirstTrack();
+    else setMarquee("No tracks");
+    fillPlaylistSelect().catch((e) => console.error("Playlist load error:", e));
+  } catch (err) {
+    console.error("Supabase error:", err);
+    el.playlist.innerHTML = `<div class="notice">데이터를 불러오지 못했습니다.<br>${esc(explain(err))}</div>`;
+    setMarquee("Supabase connection error");
+  }
+}
+
+$("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = $("login-btn"), msg = $("login-msg");
+  btn.disabled = true; msg.textContent = "로그인 중...";
+  const { error } = await sb.auth.signInWithPassword({ email: $("login-email").value.trim(), password: $("login-pw").value });
+  if (error) {
+    btn.disabled = false;
+    msg.textContent = /invalid login credentials/i.test(error.message) ? "이메일 또는 비밀번호가 올바르지 않습니다." : error.message;
+    $("login-pw").select();
+    return;
+  }
+  $("login-pw").value = "";
+  unlockApp();
+  startApp();
+});
+
+$("btn-logout").addEventListener("click", async () => {
+  if (!sb) return;
+  await sb.auth.signOut({ scope: "local" });   // 이 기기에서만 로그아웃 (다른 기기 로그인은 유지)
+  lockApp();
+});
+
+/* ---- 시작 ---- */
 (async function boot() {
   // file:// 로 열면 유튜브가 재생을 막으므로 안내 표시
   if (location.protocol === "file:") $("env-warn").hidden = false;
@@ -1259,18 +1355,16 @@ async function removeTrack(id) {
     const url = SUPABASE_URL.replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
     sb = supabase.createClient(url, SUPABASE_ANON_KEY);
 
-    allTracks = await fetchAllMusic();      // 최우선: music + artist + album 조인
-    tracks = allTracks;
-    dataReady = true;
-    renderPlaylist();
-    if (tracks.length) initFirstTrack();
-    else { setMarquee("No tracks"); }
+    // 로그아웃되거나 세션이 만료되면 자동으로 잠금
+    sb.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") lockApp(); });
 
-    fillPlaylistSelect().catch((e) => console.error("Playlist load error:", e));
+    const { data, error } = await sb.auth.getSession();   // 저장된 로그인 세션 확인
+    if (error) throw error;
+    if (data.session) { unlockApp(); startApp(); }
+    else showLogin();
   } catch (err) {
     console.error("Supabase error:", err);
-    el.playlist.innerHTML = `<div class="notice">데이터를 불러오지 못했습니다.<br>${esc(explain(err))}</div>`;
-    setMarquee("Supabase connection error");
+    showLogin("Supabase 연결 오류: " + (err.message || err));
   }
 })();
 </script>
