@@ -30,6 +30,8 @@
     --chrome-hi: #d4d0c8;
     --room-top: #1a1030;
     --room-bottom: #05030c;
+    --m: 0px;        /* 바깥 여백: 모바일 0, PC(창 너비 500px 이상)에서만 아래 @media 에서 12px */
+    --vh: 100vh;     /* dvh 지원 브라우저에서는 아래 @supports 에서 100dvh 로 교체 */
     --lift: .06em;   /* VT323 은 소문자가 줄 중앙보다 아래로 앉아서, 글자를 이만큼 위로 올려 시각적 중앙에 맞춤 */
     --font-retro: "VT323", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Courier New", monospace;
   }
@@ -41,7 +43,7 @@
     background:
       radial-gradient(ellipse at 50% 0%, #3a1f6e 0%, transparent 60%),
       linear-gradient(180deg, var(--room-top), var(--room-bottom));
-    display: block; padding: 0;   /* 창과 박스 사이 여백 없음 */
+    display: block; padding: var(--m);   /* 창과 박스 사이 여백 (PC 에서만 생김) */
   }
   button { font-family: var(--font-retro); }
 
@@ -60,11 +62,14 @@
    * 3. 윈앰프 본체 (윈도우 95/98 베벨)
    * ========================================================= */
   .winamp {
-    --fixed: 273px;   /* 플레이어를 뺀 고정 영역 높이 합계(곡목록 최소 1줄 포함). 좁은 창 모드에서는 아래 @media 에서 값이 바뀜 */
-    /* 가로: 창 너비를 따라가되 144px(기존 최소 285px 의 절반) ~ 684px(380px 의 180%) 로 제한 */
-    width: clamp(144px, 100%, 684px); margin: 0 auto;
-    /* 세로: 최소 = 플레이어 + 고정 영역 + 곡목록 1줄 (아래 .playlist 의 flex-basis), 최대 없음 → 창 높이를 채우고 남는 높이는 곡목록이 차지 */
-    min-height: 100vh; min-height: 100dvh;
+    --fixed: 311px;   /* 플레이어를 뺀 세로 고정 영역 합계 (가장 좁은 모드 기준, 곡목록 최소 1줄 포함) */
+    /* 플레이어 한 변 = min(창 높이에서 고정 영역을 뺀 값, 최대 가로폭 - 24px), 최소 120px(→ 박스 최소 144px)
+       → 창 높이를 줄이면 박스 전체가 같이 작아지고, 남는 가로는 좌우 여백이 됨 */
+    --ps: clamp(120px, calc(var(--vh) - 2 * var(--m) - var(--fixed)), calc(min(684px, 100vw - 2 * var(--m)) - 24px));
+    width: calc(var(--ps) + 24px); margin: 0 auto;
+    container-type: inline-size;   /* 박스 너비 기준으로 내부 배치를 바꾸기 위함 (아래 @container) */
+    /* 세로: 창 높이를 채움. 남는 높이는 곡목록이 차지 */
+    min-height: calc(var(--vh) - 2 * var(--m));
     display: flex; flex-direction: column;
     background: linear-gradient(180deg, #3b3b46, #24242c);
     border: 2px solid; border-color: #6e6e7c #101014 #101014 #6e6e7c;
@@ -110,10 +115,7 @@
   .cd-panel {
     --r: 12.8%;        /* 본체 바깥 모서리 (360px 일 때 46px 와 같은 비율) */
     --r-rim: 8.1%;     /* 홈 라인 모서리: 동심 비율 */
-    position: relative; aspect-ratio: 1 / 1; align-self: center;
-    /* 한 변 = min(가로폭, 창 높이 - 고정 영역). 최소 80px. (dvh 를 모르는 브라우저는 첫 줄 사용) */
-    width: min(100%, max(80px, calc(100vh - var(--fixed))));
-    width: min(100%, max(80px, calc(100dvh - var(--fixed))));
+    position: relative; width: 100%; aspect-ratio: 1 / 1;   /* 한 변 = --ps */
     border-radius: var(--r); overflow: hidden;
     background: linear-gradient(145deg, rgba(200,180,255,.38), rgba(80,60,150,.5)), #1a1236;
     box-shadow: 0 0 0 2px rgba(8,6,20,.9), 0 12px 30px rgba(0,0,0,.55);
@@ -342,21 +344,22 @@
   .msg { margin-top: 8px; font-size: 18px; color: #0a5a0a; white-space: pre-wrap; }
   .msg.err { color: #b00000; }
 
-  /* ===== 좁은 창 대응 (가로 최소 144px). 박스 너비 = 창 너비(684px 이하일 때) 이므로 창 너비 기준으로 처리 ===== */
-  @media (max-width: 300px) {
+  /* ===== 바깥 여백: PC(창 너비 500px 이상)에서만 12px, 모바일은 0 ===== */
+  @media (min-width: 500px) { :root { --m: 12px; } }
+  @supports (height: 100dvh) { :root { --vh: 100dvh; } }
+
+  /* ===== 박스가 좁아질 때(최소 144px) 내부 배치 변경: 창이 아니라 "박스" 너비 기준 ===== */
+  @container (max-width: 300px) {
     .lcd { grid-template-columns: 96px 1fr; }
     .time { font-size: 40px; }
   }
-  @media (max-width: 240px) {
-    .winamp { --fixed: 271px; }
-    .body { padding: 6px; gap: 6px; }
+  @container (max-width: 240px) {
     .titlebar { padding: 3px 4px; }
     .controls { height: auto; flex-wrap: wrap; gap: 4px; }   /* 볼륨은 버튼 아래 줄로 */
     .controls .btn { height: 30px; }
     .vol { flex: 1 1 100%; width: auto; height: 22px; }
   }
-  @media (max-width: 230px) {
-    .winamp { --fixed: 283px; }
+  @container (max-width: 230px) {
     .lcd { grid-template-columns: 1fr; height: 80px; padding: 5px 8px; align-content: center; row-gap: 3px; }
     .time { font-size: 30px; line-height: 1; text-align: center; }
     .status { display: none; }   /* 상태 글자는 숨김 (CD 회전/재생 버튼으로 확인) */
