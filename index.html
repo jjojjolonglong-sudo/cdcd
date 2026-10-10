@@ -34,7 +34,7 @@
     --font-retro: "VT323", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Courier New", monospace;
   }
   * { box-sizing: border-box; }
-  html, body { min-height: 100%; margin: 0; }
+  html, body { min-height: 100%; margin: 0; overflow: hidden; }   /* 페이지 스크롤바 없음 (곡목록 안의 스크롤만 남음) */
   body {
     font-family: var(--font-retro);
     color: var(--neon);
@@ -60,6 +60,7 @@
    * 3. 윈앰프 본체 (윈도우 95/98 베벨)
    * ========================================================= */
   .winamp {
+    --fixed: 273px;   /* 플레이어를 뺀 고정 영역 높이 합계(곡목록 최소 1줄 포함). 좁은 창 모드에서는 아래 @media 에서 값이 바뀜 */
     /* 가로: 창 너비를 따라가되 144px(기존 최소 285px 의 절반) ~ 684px(380px 의 180%) 로 제한 */
     width: clamp(144px, 100%, 684px); margin: 0 auto;
     /* 세로: 최소 = 플레이어 + 고정 영역 + 곡목록 1줄 (아래 .playlist 의 flex-basis), 최대 없음 → 창 높이를 채우고 남는 높이는 곡목록이 차지 */
@@ -109,7 +110,10 @@
   .cd-panel {
     --r: 12.8%;        /* 본체 바깥 모서리 (360px 일 때 46px 와 같은 비율) */
     --r-rim: 8.1%;     /* 홈 라인 모서리: 동심 비율 */
-    position: relative; width: 100%; aspect-ratio: 1 / 1;
+    position: relative; aspect-ratio: 1 / 1; align-self: center;
+    /* 한 변 = min(가로폭, 창 높이 - 고정 영역). 최소 80px. (dvh 를 모르는 브라우저는 첫 줄 사용) */
+    width: min(100%, max(80px, calc(100vh - var(--fixed))));
+    width: min(100%, max(80px, calc(100dvh - var(--fixed))));
     border-radius: var(--r); overflow: hidden;
     background: linear-gradient(145deg, rgba(200,180,255,.38), rgba(80,60,150,.5)), #1a1236;
     box-shadow: 0 0 0 2px rgba(8,6,20,.9), 0 12px 30px rgba(0,0,0,.55);
@@ -344,6 +348,7 @@
     .time { font-size: 40px; }
   }
   @media (max-width: 240px) {
+    .winamp { --fixed: 271px; }
     .body { padding: 6px; gap: 6px; }
     .titlebar { padding: 3px 4px; }
     .controls { height: auto; flex-wrap: wrap; gap: 4px; }   /* 볼륨은 버튼 아래 줄로 */
@@ -351,6 +356,7 @@
     .vol { flex: 1 1 100%; width: auto; height: 22px; }
   }
   @media (max-width: 230px) {
+    .winamp { --fixed: 283px; }
     .lcd { grid-template-columns: 1fr; height: 80px; padding: 5px 8px; align-content: center; row-gap: 3px; }
     .time { font-size: 30px; line-height: 1; text-align: center; }
     .status { display: none; }   /* 상태 글자는 숨김 (CD 회전/재생 버튼으로 확인) */
