@@ -179,15 +179,8 @@
   }
   /* CD 표면 장식(동심원, 띠)은 SVG 벡터 → 안티앨리어싱 적용. 투명도 2/3 */
   .cd-face { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: .67; }
-  /* 빨간 띠의 반사광: 띠와 같은 자리(호 50도·같은 두께)에만 겹치는 하이라이트. 띠는 단색이고 빛만 지나감 */
-  .cd-bandfx {
-    position: absolute; inset: 0; border-radius: 50%; z-index: 3; pointer-events: none; mix-blend-mode: screen;
-    background: conic-gradient(from 330deg,
-      rgba(255,255,255,0) 0deg, rgba(255,255,255,.55) 11deg, rgba(255,255,255,.12) 22deg,
-      rgba(255,255,255,.5) 33deg, rgba(255,255,255,0) 50deg, rgba(255,255,255,0) 360deg);
-    -webkit-mask: radial-gradient(circle closest-side, transparent 0 90.4%, #000 90.9% 98.9%, transparent 99.4%);
-            mask: radial-gradient(circle closest-side, transparent 0 90.4%, #000 90.9% 98.9%, transparent 99.4%);
-  }
+  /* 빨간 띠: 불투명하지만 z-index 를 주지 않아 .cd::after(방사형 반사광) 보다 아래 → 같은 반사광이 띠 위로 이어짐 */
+  .cd-band { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
   /* 빨간 마개: 방사형 빛 반사(::after) 위로 올라오도록 z-index 를 줌. CD 안에 있어서 같이 돈다 */
   .cd-cap { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 2; pointer-events: none; }
 
@@ -464,6 +457,12 @@
                 <circle cx="50" cy="50" r="36.55" stroke="#000" stroke-opacity=".18" stroke-width=".35"/>
               </g>
               </svg>
+            <!-- 가장자리 띠: 불투명한 빨간 필름(마개와 같은 색, 음영 없음).
+                 CD 반사광(.cd::after) 아래층이라 CD 의 반사 줄무늬가 그대로 띠 위로 이어져 지나감.
+                 호의 시작각을 반사 줄무늬가 있는 자리(위에서 시계방향 4°~54°)에 맞춤 -->
+            <svg class="cd-band" viewBox="0 0 100 100" shape-rendering="geometricPrecision" aria-hidden="true">
+              <circle cx="50" cy="50" r="47.4" fill="none" stroke="#cf1a33" stroke-width="4.4" stroke-dasharray="41.3 256.5" transform="rotate(-86 50 50)"/>
+            </svg>
             <!-- 빨간 마개 + retro 글자 (곡 목록과 같은 VT323 폰트). 반사광 위에 올라오고 CD 와 같이 돈다 -->
             <svg class="cd-cap" viewBox="0 0 100 100" shape-rendering="geometricPrecision" aria-hidden="true">
               <defs>
@@ -471,15 +470,12 @@
                   <stop offset="0" stop-color="#f03850"/><stop offset=".7" stop-color="#cf1a33"/><stop offset="1" stop-color="#9c0f26"/>
                 </radialGradient>
               </defs>
-              <!-- 가장자리 띠: CD 위에 붙인 불투명한 빨간 필름. 마개와 같은 색(#cf1a33), 음영 없음, 반사광 위에 올라옴 -->
-              <circle cx="50" cy="50" r="47.4" fill="none" stroke="#cf1a33" stroke-width="4.4" stroke-dasharray="41.3 256.5" transform="rotate(-120 50 50)"/>
               <circle cx="50" cy="50" r="15.8" fill="none" stroke="#000" stroke-opacity=".35" stroke-width=".9"/>
               <circle cx="50" cy="50" r="15" fill="url(#cd-cap-g)" stroke="#fff" stroke-opacity=".55" stroke-width=".5"/>
               <circle cx="50" cy="50" r="12.8" fill="none" stroke="#000" stroke-opacity=".22" stroke-width=".3"/>
               <text x="50" y="50" dy=".26em" text-anchor="middle" fill="#0a0508" font-size="8" letter-spacing=".4"
                     style="font-family: var(--font-retro)">retro</text>
             </svg>
-            <div class="cd-bandfx"></div>
           </div>
         </div>
       </div>
