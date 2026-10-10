@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<!-- ===== 앱(PWA) 설정: 크롬 주소창의 설치 버튼이 뜨려면 manifest + 아이콘 + 서비스 워커가 필요 ===== -->
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#120a26" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="CDCD" />
 <title>CDCD</title>
 
 <!-- 레트로 폰트 (VT323 은 한글이 없어서 한글은 시스템 폰트로 대체됩니다) -->
@@ -1203,6 +1212,15 @@ async function removeTrack(id) {
     setMarquee("Supabase connection error");
   }
 })();
+</script>
+
+<!-- 서비스 워커 등록 (http/https 로 열었을 때만. file:// 에서는 동작하지 않음) -->
+<script>
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((e) => console.warn("서비스 워커 등록 실패:", e));
+  });
+}
 </script>
 </body>
 </html>
