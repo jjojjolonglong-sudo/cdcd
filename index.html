@@ -118,13 +118,23 @@
     --r-rim: 8.1%;     /* 홈 라인 모서리: 동심 비율 */
     position: relative; width: 100%; aspect-ratio: 1 / 1;   /* 한 변 = --ps */
     border-radius: var(--r); overflow: hidden;
-    background: linear-gradient(145deg, rgba(200,180,255,.38), rgba(80,60,150,.5)), #1a1236;
+    background:
+      linear-gradient(90deg, rgba(255,255,255,.26) 0, rgba(255,255,255,.07) 3%, transparent 3.6%),   /* 왼쪽 등(스파인) 반사 */
+      linear-gradient(145deg, rgba(225,210,255,.30), rgba(95,75,180,.22) 55%, rgba(40,28,100,.34)),
+      rgba(30,22,70,.30);                                    /* 반투명: 뒤가 은은하게 비치는 맑은 플라스틱 */
+    backdrop-filter: blur(1.5px) saturate(1.25);
     box-shadow: 0 0 0 2px rgba(8,6,20,.9), 0 12px 30px rgba(0,0,0,.55);
   }
   /* 앨범 커버: 사각형 본체 전체에 깔림, 회전 안 함, 불투명도 75% */
+  /* 내지: 케이스 안쪽(홈 라인 안)에 끼워진 앨범 커버 카드. 커버가 없으면 어두운 빈 내지가 보임 */
+  .liner, .cd-bg { position: absolute; inset: 6.2%; width: 87.6%; height: 87.6%; border-radius: 3.4%; z-index: 0; }
+  .liner {
+    background: linear-gradient(160deg, #2b2448, #130f28);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.09), 0 1px 3px rgba(0,0,0,.6);
+  }
   .cd-bg {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: cover; opacity: .75; visibility: hidden; z-index: 0;
+    object-fit: cover; opacity: .94; visibility: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.6), 0 2px 7px rgba(0,0,0,.55), inset 0 0 14px rgba(0,0,0,.35);   /* 종이 가장자리 + 살짝 가라앉은 느낌 */
   }
   /* 본체 바깥 가장자리: 투명 플라스틱의 두께감 */
   .cd-panel::before {
@@ -400,9 +410,47 @@
   }
   html[data-layout="square"] .body { position: relative; }
   html[data-layout="square"] .seek, html[data-layout="square"] .pl-select, html[data-layout="square"] .playlist { display: none; }
-  html[data-layout="square"] .lcd { position: absolute; top: 18px; left: 18px; right: 18px; z-index: 10; background: rgba(2,10,2,.8); }
-  html[data-layout="square"] .controls { position: absolute; bottom: 18px; left: 18px; right: 18px; z-index: 10; padding: 4px; background: rgba(20,20,28,.6); backdrop-filter: blur(3px); height: auto; }
-  html[data-layout="square"] .controls .btn { height: 30px; }
+  /* 정사각형 모드: 투명 케이스 안쪽에 전광판/버튼/음량을 둥글게 깎아 얹음. 표시: 재생 시간, 제목 - 가수, 버튼 3개, 음량 */
+  html[data-layout="square"] .winamp { --pad: calc(var(--ps) * .075); }
+  html[data-layout="square"] .status { display: none; }
+  html[data-layout="square"] .lcd {
+    position: absolute; z-index: 10; top: calc(10px + var(--pad)); left: calc(10px + var(--pad)); right: calc(10px + var(--pad));
+    display: flex; align-items: center; gap: calc(var(--ps) * .03); height: auto;
+    padding: calc(var(--ps) * .02) calc(var(--ps) * .04); border-radius: calc(var(--ps) * .05);
+    background: linear-gradient(180deg, rgba(8,28,10,.74), rgba(2,12,4,.66));
+    border: 1px solid rgba(150,255,150,.28);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 0 14px rgba(0,0,0,.55), 0 5px 12px rgba(0,0,0,.35);
+    backdrop-filter: blur(4px);
+  }
+  html[data-layout="square"] .time { font-size: clamp(20px, calc(var(--ps) * .085), 38px); }
+  html[data-layout="square"] .info { flex: 1; min-width: 0; }
+  html[data-layout="square"] .marquee { font-size: clamp(15px, calc(var(--ps) * .058), 24px); height: 1.25em; line-height: 1.25em; }
+  html[data-layout="square"] .controls {
+    position: absolute; z-index: 10; bottom: calc(10px + var(--pad)); left: calc(10px + var(--pad)); right: calc(10px + var(--pad));
+    height: auto; align-items: center; gap: calc(var(--ps) * .025); padding: calc(var(--ps) * .022);
+    border-radius: calc(var(--ps) * .065);
+    background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.06) 48%, rgba(20,16,44,.5));
+    border: 1px solid rgba(255,255,255,.3);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.4), inset 0 -8px 14px rgba(0,0,0,.25), 0 8px 16px rgba(0,0,0,.4);
+    backdrop-filter: blur(6px) saturate(1.3);
+  }
+  html[data-layout="square"] .controls .btn {
+    flex: none; width: calc(var(--ps) * .15); height: calc(var(--ps) * .095); border-radius: 999px; color: #eef0ff;
+    background: linear-gradient(180deg, rgba(255,255,255,.42), rgba(255,255,255,.12) 52%, rgba(255,255,255,.22));
+    border: 1px solid rgba(255,255,255,.4);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 2px 5px rgba(0,0,0,.4);
+  }
+  html[data-layout="square"] .controls .btn:active, html[data-layout="square"] .controls .btn.latched {
+    padding-top: 0; color: var(--neon); text-shadow: 0 0 6px var(--neon);
+    background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(57,255,20,.22));
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.5), 0 0 8px rgba(57,255,20,.35);
+  }
+  html[data-layout="square"] .vol {
+    flex: 1; width: auto; height: calc(var(--ps) * .075); padding: 3px 6px; gap: 3px; border-radius: 999px;
+    background: rgba(2,12,4,.6); border: 1px solid rgba(150,255,150,.28); box-shadow: inset 0 1px 6px rgba(0,0,0,.6);
+  }
+  html[data-layout="square"] .vol i { border-radius: 2px; }
+
 
   /* =========================================================
    * 유리 느낌 반사광 강화
@@ -448,6 +496,7 @@
 
     <!-- 투명 CD 플레이어: 본체 > 홈 라인 > 원형 슬롯(+손가락 홈) > CD(+띠, 빨간 마개) -->
     <section class="cd-panel" aria-label="CD player">
+      <div class="liner"></div>
       <img class="cd-bg" id="cover" alt="앨범 커버" />
       <div class="cd-rim"></div>
       <div class="cd-field">
@@ -596,7 +645,6 @@
       <button class="tab" data-tab="artist">가수</button>
       <button class="tab" data-tab="playlist">재생목록</button>
       <button class="tab" data-tab="tracks">재생목록 곡 구성</button>
-      <button class="tab" data-tab="migrate">커버 이전</button>
     </div>
     <div class="mgr-body" id="mgr-body"></div>
   </div>
@@ -628,7 +676,6 @@ const SUPABASE_URL = "https://rtvvajhsnwkkrmncyfbs.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0dnZhamhzbndra3JtbmN5ZmJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NjkwMTEsImV4cCI6MjEwNzA0NTAxMX0.O2aLLeazv_FhUhbVAkp4vz3pw8GPb_683dUu7Et1Cwk";
 
 /* 앨범 커버 업로드용 스토리지 버킷 이름 (Supabase Storage 에서 "Public bucket" 으로 만들어 두세요) */
-const STORAGE_BUCKET = "album-covers";
 /* 앨범 커버: 공용 모듈(media.js)로 WebP 변환 후 R2에 올리고, DB(cdcd_album.cover)에는 해시만 저장. 세로 크기(px): 플레이어에서 크게 보여서 다른 앱(200)보다 크게 */
 const COVER_H = 400;
 
@@ -689,7 +736,6 @@ function esc(s) {                         // HTML 이스케이프
 function explain(err) {
   const m = (err && err.message) || String(err);
   if (err && err.code === "23503") return "다른 데이터가 이 항목을 참조하고 있어서 처리할 수 없습니다.\n(예: 곡이 남아있는 가수/앨범은 삭제 전에 곡의 가수/앨범을 바꿔주세요)";
-  if (/Bucket not found/i.test(m)) return `스토리지 버킷 "${STORAGE_BUCKET}" 이(가) 없습니다.\nSupabase → Storage 에서 Public 버킷을 만들어주세요.`;
   if (/row-level security/i.test(m)) return m + "\n(권한 오류: 로그인한 이메일이 RLS 정책에 넣은 이메일과 같은지, 스토리지 정책이 적용됐는지 확인하세요)";
   return m;
 }
@@ -1101,33 +1147,11 @@ $("tabs").addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab]"); if (b) openTab(b.dataset.tab);
 });
 
-/* 예전 Supabase 스토리지 커버(cover_url) → R2(cover 해시). 이전이 끝나면 이 탭과 함수는 지워도 돼요 */
-async function migrateCovers() {
-  mgrBody.innerHTML = '<div class="card"><div class="msg" id="mig-msg">준비 중...</div></div>';
-  const say = (t) => { const m = $("mig-msg"); if (m) m.textContent = t; };
-  try {
-    const { data, error } = await sb.from("cdcd_album").select("id, name, cover_url").is("cover", null).not("cover_url", "is", null);
-    if (error) throw error;
-    let ok = 0; const fail = [];
-    for (const [i, a] of data.entries()) {
-      say(`${i + 1}/${data.length}  ${a.name}`);
-      try {
-        const r = await fetch(a.cover_url); if (!r.ok) throw new Error("HTTP " + r.status);
-        const hash = await uploadCover(new File([await r.blob()], "cover.jpg", { type: "image/jpeg" }));
-        const u = await sb.from("cdcd_album").update({ cover: hash }).eq("id", a.id); if (u.error) throw u.error;
-        ok++;
-      } catch (e) { fail.push(a.name + ": " + e.message); }
-    }
-    say(`완료: ${ok}/${data.length}` + (fail.length ? "\n실패:\n" + fail.join("\n") : ""));
-  } catch (e) { say(explain(e)); }
-}
-
 async function openTab(tab) {
   mgr.tab = tab; mgr.editingId = null;
   document.querySelectorAll("#tabs .tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
   mgrBody.innerHTML = '<div class="empty">Loading...</div>';
   try {
-    if (tab === "migrate") { await migrateCovers(); return; }
     if (tab === "tracks") { await loadTracksTab(); return; }
     const cfg = SCHEMA[tab];
     // 참조(select) 필드용 목록 (가수/앨범)
