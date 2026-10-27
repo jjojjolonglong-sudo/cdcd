@@ -66,7 +66,7 @@
     --fixed: 311px;   /* 플레이어를 뺀 세로 고정 영역 합계 (가장 좁은 모드 기준, 곡목록 최소 1줄 포함) */
     /* 플레이어 한 변 = min(창 높이에서 고정 영역을 뺀 값, 최대 가로폭 - 24px), 최소 120px(→ 박스 최소 144px)
        → 창 높이를 줄이면 박스 전체가 같이 작아지고, 남는 가로는 좌우 여백이 됨 */
-    --ps: clamp(120px, calc(var(--vh) - 2 * var(--m) - var(--fixed)), calc(min(684px, 100vw - 2 * var(--m)) - 24px));
+    --ps: clamp(120px, calc(var(--vh) - 2 * var(--m) - var(--fixed)), calc(min(360px, 100vw - 2 * var(--m)) - 24px));
     width: calc(var(--ps) + 24px); margin: 0 auto;
     container-type: inline-size;   /* 박스 너비 기준으로 내부 배치를 바꾸기 위함 (아래 @container) */
     /* 세로: 창 높이를 채움. 남는 높이는 곡목록이 차지 */
@@ -368,6 +368,61 @@
   }
 
   @media (prefers-reduced-motion: reduce) { .marquee.scroll span { animation: none; } }
+
+  /* =========================================================
+   * 레이아웃 3종 (JS 가 <html data-layout> 을 portrait / landscape / square 로 지정)
+   *  - portrait(기본): 윈앰프 폭(360px)까지, 그 이상은 사방 여백
+   *  - landscape: 창이 작고 가로로 납작할 때. 왼쪽에 전광판·진행바·버튼·음량·목록, 오른쪽에 CD
+   *  - square: 가로세로가 비슷할 때. 정사각형 CD 위에 전광판·버튼·음량만 겹쳐 표시
+   * ========================================================= */
+  html, body { height: 100%; }
+  body { display: flex; align-items: center; justify-content: center; height: var(--vh); }
+  .winamp { flex: none; margin: 0; min-height: min(calc(var(--vh) - 2 * var(--m)), 820px); max-height: 820px; }
+
+  html[data-layout="landscape"] .winamp {
+    --h: min(calc(var(--vh) - 2 * var(--m)), 420px);   /* 박스 높이 */
+    --cs: calc(var(--h) - 54px);                        /* CD 한 변 = 박스 높이 - 제목줄/여백 */
+    width: min(760px, calc(100vw - 2 * var(--m))); height: var(--h); min-height: 0; max-height: none;
+  }
+  html[data-layout="landscape"] .body {
+    display: grid; grid-template-columns: minmax(0, 1fr) var(--cs);
+    grid-template-rows: auto auto auto auto minmax(0, 1fr); gap: 8px 10px;
+  }
+  html[data-layout="landscape"] .body > * { grid-column: 1; }
+  html[data-layout="landscape"] .body > .cd-panel { grid-column: 2; grid-row: 1 / -1; width: var(--cs); height: var(--cs); }
+  html[data-layout="landscape"] .body > .env-warn { grid-column: 1 / -1; }
+  html[data-layout="landscape"] .playlist { min-height: 0; }
+  @media (max-height: 260px) { html[data-layout="landscape"] .pl-select, html[data-layout="landscape"] .playlist { display: none; } }
+
+  html[data-layout="square"] .winamp {
+    --ps: clamp(140px, calc(min(100vw, var(--vh)) - 2 * var(--m) - 56px), 520px);
+    width: calc(var(--ps) + 24px); min-height: 0; max-height: none;
+  }
+  html[data-layout="square"] .body { position: relative; }
+  html[data-layout="square"] .seek, html[data-layout="square"] .pl-select, html[data-layout="square"] .playlist { display: none; }
+  html[data-layout="square"] .lcd { position: absolute; top: 18px; left: 18px; right: 18px; z-index: 10; background: rgba(2,10,2,.8); }
+  html[data-layout="square"] .controls { position: absolute; bottom: 18px; left: 18px; right: 18px; z-index: 10; padding: 4px; background: rgba(20,20,28,.6); backdrop-filter: blur(3px); height: auto; }
+  html[data-layout="square"] .controls .btn { height: 30px; }
+
+  /* =========================================================
+   * 유리 느낌 반사광 강화
+   *  - .cd::before : CD 와 같이 도는 가는 빛줄기 (회전에 따라 반짝)
+   *  - .cd-field::after : 돌지 않는 고정 광원 반사 (유리 위를 비추는 빛)
+   * ========================================================= */
+  .cd::before {
+    content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+    background: conic-gradient(from 100deg, transparent 0 6%, rgba(255,255,255,.6) 8%, transparent 11.5%,
+      transparent 43%, rgba(255,255,255,.42) 46%, transparent 49.5%,
+      transparent 74%, rgba(190,220,255,.4) 77%, transparent 80.5%);
+    mix-blend-mode: screen; filter: blur(1.2px);
+  }
+  .cd-field::after {
+    content: ""; position: absolute; inset: 3%; border-radius: 50%; pointer-events: none; z-index: 3;
+    background:
+      radial-gradient(ellipse 58% 36% at 32% 22%, rgba(255,255,255,.42), rgba(255,255,255,.1) 55%, transparent 72%),
+      linear-gradient(118deg, transparent 36%, rgba(255,255,255,.16) 46%, transparent 55%);
+    mix-blend-mode: screen;
+  }
 </style>
 </head>
 <body class="locked">   <!-- locked: 로그인 전에는 앱 화면을 숨김 -->
@@ -541,6 +596,7 @@
       <button class="tab" data-tab="artist">가수</button>
       <button class="tab" data-tab="playlist">재생목록</button>
       <button class="tab" data-tab="tracks">재생목록 곡 구성</button>
+      <button class="tab" data-tab="migrate">커버 이전</button>
     </div>
     <div class="mgr-body" id="mgr-body"></div>
   </div>
@@ -561,6 +617,7 @@
 
 <!-- Supabase JS SDK (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://jjojjolonglong-sudo.github.io/mnmn/media.js"></script>
 
 <script>
 /* =========================================================
@@ -572,13 +629,15 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 /* 앨범 커버 업로드용 스토리지 버킷 이름 (Supabase Storage 에서 "Public bucket" 으로 만들어 두세요) */
 const STORAGE_BUCKET = "album-covers";
-/* 업로드 시 리사이즈할 정사각형 한 변의 최대 크기(px) */
-const COVER_SIZE = 600;
+/* 앨범 커버: 공용 모듈(media.js)로 WebP 변환 후 R2에 올리고, DB(cdcd_album.cover)에는 해시만 저장. 세로 크기(px): 플레이어에서 크게 보여서 다른 앱(200)보다 크게 */
+const COVER_H = 400;
 
 /* =========================================================
  * 전역 상태
  * ========================================================= */
 let sb = null;             // Supabase 클라이언트
+if(!window.Media)window.Media={init(){},url:()=>'',process:async()=>{throw new Error('media.js could not be loaded')},upload:async()=>{throw new Error('media.js could not be loaded')}};
+Media.init({getToken:async()=>(await sb.auth.getSession()).data.session?.access_token});
 let tracks = [];           // 현재 화면에 표시/재생 중인 곡 목록
 let allTracks = [];        // music 테이블 전체 곡
 let currentIndex = 0;      // 현재 곡 인덱스
@@ -638,7 +697,7 @@ function explain(err) {
 /* =========================================================
  * 1) 곡 데이터 조회 (music + artist + album 조인)
  * ========================================================= */
-const MUSIC_SELECT = "id, name, youtube_url, artist(name), album(cover_url)";
+const MUSIC_SELECT = "id, name, youtube_url, artist:cdcd_artist(name), album:cdcd_album(cover)";
 
 /** music 행(조인 결과 포함) → 화면용 곡 객체 */
 function mapMusic(row) {
@@ -646,13 +705,13 @@ function mapMusic(row) {
     id: row.id,
     title: row.name,
     artist: pickOne(row.artist)?.name ?? "Unknown Artist",
-    cover: pickOne(row.album)?.cover_url ?? "",
+    cover: Media.url(pickOne(row.album)?.cover),
     videoId: getYouTubeId(row.youtube_url),
   };
 }
 
 async function fetchAllMusic() {
-  const { data, error } = await sb.from("music").select(MUSIC_SELECT).order("id", { ascending: true });
+  const { data, error } = await sb.from("cdcd_music").select(MUSIC_SELECT).order("id", { ascending: true });
   if (error) throw error;
   return (data || []).map(mapMusic);
 }
@@ -660,8 +719,8 @@ async function fetchAllMusic() {
 /** 재생목록 하나의 곡들을 track_order 순서로 조회 (playlist_track → music → artist/album 중첩 조인) */
 async function fetchPlaylistTracks(playlistId) {
   const { data, error } = await sb
-    .from("playlist_track")
-    .select("track_order, music(" + MUSIC_SELECT + ")")
+    .from("cdcd_playlist_track")
+    .select("track_order, music:cdcd_music(" + MUSIC_SELECT + ")")
     .eq("playlist_id", playlistId)
     .order("track_order", { ascending: true });
   if (error) throw error;
@@ -671,7 +730,7 @@ async function fetchPlaylistTracks(playlistId) {
 /** playlist 테이블 → 드롭다운 (이전 선택을 최대한 유지) */
 async function fillPlaylistSelect() {
   const prev = el.plSelect.value;
-  const { data, error } = await sb.from("playlist").select("id, name").order("id", { ascending: true });
+  const { data, error } = await sb.from("cdcd_playlist").select("id, name").order("id", { ascending: true });
   if (error) throw error;
   el.plSelect.innerHTML = '<option value="all">All music</option>';
   (data || []).forEach((p) => {
@@ -698,23 +757,23 @@ function renderPlaylist() {
   el.playlist.innerHTML = tracks.map((t, i) => `
     <div class="row" data-i="${i}" role="option">
       <span class="no">${i + 1}.</span>
-      <span class="nm">${esc(t.artist)} - ${esc(t.title)}</span>
+      <span class="nm">${esc(t.title)} - ${esc(t.artist)}</span>
     </div>`).join("");
   highlight();
 }
-function highlight() {
+function highlight(scroll = true) {   // scroll=false: 클릭 선택 때는 목록 위치를 건드리지 않음
   el.playlist.querySelectorAll(".row").forEach((r) => {
     const i = Number(r.dataset.i);
     r.classList.toggle("current", i === currentIndex);
     r.classList.toggle("selected", i === selectedIndex && i !== currentIndex);
   });
   const cur = el.playlist.querySelector(".row.current");
-  if (cur) cur.scrollIntoView({ block: "nearest" });
+  if (scroll && cur) cur.scrollIntoView({ block: "nearest" });
 }
 // 한 번 클릭 = 선택, 더블클릭 = 재생
 el.playlist.addEventListener("click", (e) => {
   const row = e.target.closest(".row"); if (!row) return;
-  selectedIndex = Number(row.dataset.i); highlight();
+  selectedIndex = Number(row.dataset.i); highlight(false);
 });
 el.playlist.addEventListener("dblclick", (e) => {
   const row = e.target.closest(".row"); if (!row) return;
@@ -772,7 +831,7 @@ function setCover(url) {
 }
 
 function showTrackInfo(t) {
-  setMarquee(`${t.artist} - ${t.title}`);
+  setMarquee(`${t.title} - ${t.artist}`);
   setCover(t.cover);
 }
 /** 재생 버튼 모양 갱신: 재생 중이면 일시정지(❚❚) 아이콘 + 눌린 상태, 아니면 재생(▶) 아이콘 */
@@ -974,25 +1033,9 @@ async function refreshData() {
 /* =========================================================
  * 7) 앨범 커버 업로드 (업로드 전에 정사각형으로 잘라서 리사이즈)
  * ========================================================= */
-async function resizeToSquare(file) {
-  const bmp = await createImageBitmap(file);
-  const side = Math.min(bmp.width, bmp.height);          // 가운데 기준 정사각형으로 자르기(cover)
-  const sx = (bmp.width - side) / 2, sy = (bmp.height - side) / 2;
-  const size = Math.min(COVER_SIZE, side);               // 원본보다 키우지는 않음
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(bmp, sx, sy, side, side, 0, 0, size, size);
-  return new Promise((res, rej) =>
-    canvas.toBlob((b) => (b ? res(b) : rej(new Error("이미지 변환에 실패했습니다."))), "image/jpeg", 0.88));
-}
 async function uploadCover(file) {
-  const blob = await resizeToSquare(file);
-  const path = `album_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;   // 파일명은 영문/숫자만
-  const { error } = await sb.storage.from(STORAGE_BUCKET).upload(path, blob, { contentType: "image/jpeg", cacheControl: "31536000" });
-  if (error) throw error;
-  return sb.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+  const p = await Media.process(file, { height: COVER_H });   // 세로 기준 WebP, 크롭 없음(화면에서 CSS가 정사각형으로 자름)
+  try { return await Media.upload(p); } finally { p.close(); }   // 해시 16자 반환
 }
 
 /* =========================================================
@@ -1002,7 +1045,7 @@ async function uploadCover(file) {
  * ========================================================= */
 const SCHEMA = {
   music: {
-    label: "곡", select: "id, name, youtube_url, artist_id, album_id, artist(name), album(name)",
+    label: "곡", select: "id, name, youtube_url, artist_id, album_id, artist:cdcd_artist(name), album:cdcd_album(name)",
     fields: [
       { key: "name", label: "곡 제목", type: "text", required: true },
       { key: "youtube_url", label: "유튜브 URL", type: "text", required: true },
@@ -1013,13 +1056,13 @@ const SCHEMA = {
     sub: (r) => `${pickOne(r.artist)?.name ?? "-"} · ${pickOne(r.album)?.name ?? "-"}`,
   },
   album: {
-    label: "앨범", select: "id, name, cover_url, artist_id, artist(name)",
+    label: "앨범", select: "id, name, cover, artist_id, artist:cdcd_artist(name)",
     fields: [
       { key: "name", label: "앨범 이름", type: "text", required: true },
       { key: "artist_id", label: "가수", type: "ref", ref: "artist" },
-      { key: "cover_url", label: "커버 이미지", type: "image" },
+      { key: "cover", label: "커버 이미지", type: "image" },
     ],
-    title: (r) => r.name, sub: (r) => pickOne(r.artist)?.name ?? "-", thumb: (r) => r.cover_url,
+    title: (r) => r.name, sub: (r) => pickOne(r.artist)?.name ?? "-", thumb: (r) => Media.url(r.cover),
   },
   artist: {
     label: "가수", select: "id, name",
@@ -1058,20 +1101,42 @@ $("tabs").addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab]"); if (b) openTab(b.dataset.tab);
 });
 
+/* 예전 Supabase 스토리지 커버(cover_url) → R2(cover 해시). 이전이 끝나면 이 탭과 함수는 지워도 돼요 */
+async function migrateCovers() {
+  mgrBody.innerHTML = '<div class="card"><div class="msg" id="mig-msg">준비 중...</div></div>';
+  const say = (t) => { const m = $("mig-msg"); if (m) m.textContent = t; };
+  try {
+    const { data, error } = await sb.from("cdcd_album").select("id, name, cover_url").is("cover", null).not("cover_url", "is", null);
+    if (error) throw error;
+    let ok = 0; const fail = [];
+    for (const [i, a] of data.entries()) {
+      say(`${i + 1}/${data.length}  ${a.name}`);
+      try {
+        const r = await fetch(a.cover_url); if (!r.ok) throw new Error("HTTP " + r.status);
+        const hash = await uploadCover(new File([await r.blob()], "cover.jpg", { type: "image/jpeg" }));
+        const u = await sb.from("cdcd_album").update({ cover: hash }).eq("id", a.id); if (u.error) throw u.error;
+        ok++;
+      } catch (e) { fail.push(a.name + ": " + e.message); }
+    }
+    say(`완료: ${ok}/${data.length}` + (fail.length ? "\n실패:\n" + fail.join("\n") : ""));
+  } catch (e) { say(explain(e)); }
+}
+
 async function openTab(tab) {
   mgr.tab = tab; mgr.editingId = null;
   document.querySelectorAll("#tabs .tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
   mgrBody.innerHTML = '<div class="empty">Loading...</div>';
   try {
+    if (tab === "migrate") { await migrateCovers(); return; }
     if (tab === "tracks") { await loadTracksTab(); return; }
     const cfg = SCHEMA[tab];
     // 참조(select) 필드용 목록 (가수/앨범)
     for (const f of cfg.fields.filter((f) => f.type === "ref")) {
-      const { data, error } = await sb.from(f.ref).select("id, name").order("id");
+      const { data, error } = await sb.from("cdcd_" + f.ref).select("id, name").order("id");
       if (error) throw error;
       mgr.refs[f.ref] = data || [];
     }
-    const { data, error } = await sb.from(tab).select(cfg.select).order("id", { ascending: true });
+    const { data, error } = await sb.from("cdcd_" + tab).select(cfg.select).order("id", { ascending: true });
     if (error) throw error;
     mgr.rows = data || [];
     drawCrud();
@@ -1095,8 +1160,8 @@ function drawCrud() {
       return `<label class="fld"><span>${f.label}</span><select name="${f.key}"><option value="">(없음)</option>${opts}</select></label>`;
     }
     if (f.type === "image")
-      return `<div class="fld"><span>${f.label} (올리면 자동으로 정사각형 리사이즈 후 저장${editing ? " / 선택 안 하면 기존 이미지 유지" : ""})</span>
-        <div class="img-row"><img class="thumb big" id="img-preview" alt="" ${val ? `src="${esc(val)}"` : 'style="visibility:hidden"'}>
+      return `<div class="fld"><span>${f.label} (올리면 자동으로 WebP 변환 후 저장${editing ? " / 선택 안 하면 기존 이미지 유지" : ""})</span>
+        <div class="img-row"><img class="thumb big" id="img-preview" alt="" ${val ? `src="${esc(Media.url(val))}"` : 'style="visibility:hidden"'}>
         <input type="file" name="${f.key}" accept="image/*"></div></div>`;
     return "";
   }).join("");
@@ -1151,8 +1216,8 @@ mgrBody.addEventListener("submit", async (e) => {
     if (mgr.tab === "music" && !getYouTubeId(payload.youtube_url)) throw new Error("올바른 유튜브 주소가 아닙니다.");
 
     const q = mgr.editingId
-      ? sb.from(mgr.tab).update(payload).eq("id", mgr.editingId)
-      : sb.from(mgr.tab).insert(payload);
+      ? sb.from("cdcd_" + mgr.tab).update(payload).eq("id", mgr.editingId)
+      : sb.from("cdcd_" + mgr.tab).insert(payload);
     const { error } = await q;
     if (error) throw error;
 
@@ -1185,9 +1250,9 @@ async function deleteRow(id) {
   const warn = { music: "이 곡이 들어있는 재생목록 항목도 함께 삭제됩니다.", playlist: "이 재생목록의 곡 구성도 함께 삭제됩니다." }[mgr.tab] || "";
   if (!confirm(`정말 삭제할까요?\n${warn}`)) return;
   // 연결된 playlist_track 을 먼저 정리 (외래키 오류 방지)
-  if (mgr.tab === "music") { const r = await sb.from("playlist_track").delete().eq("music_id", id); if (r.error) throw r.error; }
-  if (mgr.tab === "playlist") { const r = await sb.from("playlist_track").delete().eq("playlist_id", id); if (r.error) throw r.error; }
-  const { error } = await sb.from(mgr.tab).delete().eq("id", id);
+  if (mgr.tab === "music") { const r = await sb.from("cdcd_playlist_track").delete().eq("music_id", id); if (r.error) throw r.error; }
+  if (mgr.tab === "playlist") { const r = await sb.from("cdcd_playlist_track").delete().eq("playlist_id", id); if (r.error) throw r.error; }
+  const { error } = await sb.from("cdcd_" + mgr.tab).delete().eq("id", id);
   if (error) throw error;
   mgr.dirty = true;
   await openTab(mgr.tab);
@@ -1197,8 +1262,8 @@ async function deleteRow(id) {
 /* ---- 재생목록 곡 구성 (playlist_track) ---- */
 async function loadTracksTab() {
   const [pl, mu] = await Promise.all([
-    sb.from("playlist").select("id, name").order("id"),
-    sb.from("music").select("id, name, artist(name)").order("id"),
+    sb.from("cdcd_playlist").select("id, name").order("id"),
+    sb.from("cdcd_music").select("id, name, artist:cdcd_artist(name)").order("id"),
   ]);
   if (pl.error) throw pl.error;
   if (mu.error) throw mu.error;
@@ -1209,14 +1274,14 @@ async function loadTracksTab() {
 
 async function drawTracks() {
   if (!mgr.playlists.length) { mgrBody.innerHTML = '<div class="empty">먼저 [재생목록] 탭에서 재생목록을 만들어주세요.</div>'; return; }
-  const { data, error } = await sb.from("playlist_track")
-    .select("id, track_order, music(id, name, artist(name))")
+  const { data, error } = await sb.from("cdcd_playlist_track")
+    .select("id, track_order, music:cdcd_music(id, name, artist:cdcd_artist(name))")
     .eq("playlist_id", mgr.trackPl).order("track_order", { ascending: true });
   if (error) throw error;
   mgr.trackRows = data || [];
 
   const plOpts = mgr.playlists.map((p) => `<option value="${p.id}" ${p.id === mgr.trackPl ? "selected" : ""}>${esc(p.name)}</option>`).join("");
-  const muOpts = mgr.musicList.map((m) => `<option value="${m.id}">${esc(pickOne(m.artist)?.name ?? "-")} - ${esc(m.name)}</option>`).join("");
+  const muOpts = mgr.musicList.map((m) => `<option value="${m.id}">${esc(m.name)} - ${esc(pickOne(m.artist)?.name ?? "-")}</option>`).join("");
   const rows = mgr.trackRows.map((r, i) => {
     const m = pickOne(r.music);
     return `<div class="item">
@@ -1242,7 +1307,7 @@ async function addTrack() {
   const musicId = Number($("trk-music").value);
   if (!musicId) throw new Error("추가할 곡을 선택하세요.");
   const next = mgr.trackRows.reduce((mx, r) => Math.max(mx, r.track_order || 0), 0) + 1;   // 맨 뒤에 추가
-  const { error } = await sb.from("playlist_track").insert({ playlist_id: mgr.trackPl, music_id: musicId, track_order: next });
+  const { error } = await sb.from("cdcd_playlist_track").insert({ playlist_id: mgr.trackPl, music_id: musicId, track_order: next });
   if (error) throw error;
   mgr.dirty = true; await drawTracks(); mgrMsg("추가되었습니다.");
 }
@@ -1253,14 +1318,14 @@ async function moveTrack(id, dir) {
   if (i < 0 || j < 0 || j >= rows.length) return;
   [rows[i], rows[j]] = [rows[j], rows[i]];
   // 1..n 으로 순서를 다시 매기고, 값이 달라진 행만 업데이트 (중복/빈 순번도 함께 정리됨)
-  const jobs = rows.map((r, idx) => (r.track_order === idx + 1 ? null : sb.from("playlist_track").update({ track_order: idx + 1 }).eq("id", r.id))).filter(Boolean);
+  const jobs = rows.map((r, idx) => (r.track_order === idx + 1 ? null : sb.from("cdcd_playlist_track").update({ track_order: idx + 1 }).eq("id", r.id))).filter(Boolean);
   const results = await Promise.all(jobs);
   const bad = results.find((r) => r.error); if (bad) throw bad.error;
   mgr.dirty = true; await drawTracks();
 }
 
 async function removeTrack(id) {
-  const { error } = await sb.from("playlist_track").delete().eq("id", id);
+  const { error } = await sb.from("cdcd_playlist_track").delete().eq("id", id);
   if (error) throw error;
   mgr.dirty = true; await drawTracks(); mgrMsg("삭제되었습니다.");
 }
@@ -1376,6 +1441,17 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     navigator.serviceWorker.register("sw.js").catch((e) => console.warn("서비스 워커 등록 실패:", e));
   });
 }
+
+/* 창 비율/크기로 레이아웃 선택: 비슷한 비율 → square, 작고 납작 → landscape, 그 외 → portrait */
+function setLayout() {
+  const w = innerWidth, h = innerHeight, r = w / h;
+  const mode = (r >= 0.8 && r <= 1.25) ? "square" : (r > 1.25 && h <= 600) ? "landscape" : "portrait";
+  if (document.documentElement.dataset.layout === mode) return;
+  document.documentElement.dataset.layout = mode;
+  const t = lastMarquee; lastMarquee = null; if (t != null) setMarquee(t);   // 전광판 폭이 바뀌었으니 흐름 다시 계산
+}
+addEventListener("resize", setLayout);
+setLayout();
 </script>
 </body>
 </html>
