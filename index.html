@@ -665,15 +665,17 @@
 
 <!-- Supabase JS SDK (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://jjojjolonglong-sudo.github.io/mnmn/media.js"></script>
+<script src="https://jjojjolonglong-sudo.github.io/mnmn/config.js"></script>
+<script src="https://jjojjolonglong-sudo.github.io/mnmn/media.v1.js"></script>
 
 <script>
 /* =========================================================
  * [설정] Supabase 접속 정보
  *  - SUPABASE_URL 은 프로젝트 기본 주소만 (끝에 /rest/v1/ 없이)
  * ========================================================= */
-const SUPABASE_URL = "https://rtvvajhsnwkkrmncyfbs.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0dnZhamhzbndra3JtbmN5ZmJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NjkwMTEsImV4cCI6MjEwNzA0NTAxMX0.O2aLLeazv_FhUhbVAkp4vz3pw8GPb_683dUu7Et1Cwk";
+const CFG = window.APP_CONFIG || {};   // 공용 설정(config.js). 못 불러와도(오프라인 등) 아래 값으로 동작해요
+const SUPABASE_URL = CFG.SB || "https://rtvvajhsnwkkrmncyfbs.supabase.co";
+const SUPABASE_ANON_KEY = CFG.ANON || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0dnZhamhzbndra3JtbmN5ZmJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NjkwMTEsImV4cCI6MjEwNzA0NTAxMX0.O2aLLeazv_FhUhbVAkp4vz3pw8GPb_683dUu7Et1Cwk";
 
 /* 앨범 커버 업로드용 스토리지 버킷 이름 (Supabase Storage 에서 "Public bucket" 으로 만들어 두세요) */
 /* 앨범 커버: 공용 모듈(media.js)로 WebP 변환 후 R2에 올리고, DB(cdcd_album.cover)에는 해시만 저장. 세로 크기(px): 플레이어에서 크게 보여서 다른 앱(200)보다 크게 */
