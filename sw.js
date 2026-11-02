@@ -4,16 +4,15 @@
  *  - 같은 사이트의 파일은 "네트워크 우선, 실패하면 캐시" → GitHub 에 새 버전을 올리면 바로 반영됨
  *  - Supabase / YouTube / CDN 같은 외부 요청은 건드리지 않고 그대로 통과 (음악/데이터는 항상 최신)
  * ========================================================= */
-const CACHE = "cdcd-v1";   // 캐시 목록(SHELL)을 바꿨을 때만 숫자를 올리세요
+const CACHE = "cdcd-v2";   // 캐시 목록(SHELL)을 바꿨을 때만 숫자를 올리세요
 const SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/icon-maskable-512.png",
-  "./icons/apple-touch-icon.png",
-  "./icons/favicon-32.png",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./icon-maskable-512.png",
+  "./apple-touch-icon.png",
 ];
 
 self.addEventListener("install", (event) => {
