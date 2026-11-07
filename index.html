@@ -143,11 +143,10 @@
       inset -3px -3px 8px rgba(0,0,0,.4);
   }
   /* 유리 반사광 (고정) */
-  /* 맨 위 유리(투명 플라스틱) 반사: 셀 애니처럼 경계가 또렷한 사선 빛줄기 두 개 + 왼쪽 위 둥근 하이라이트 + 오른쪽 아래 작은 반사 */
+  /* 맨 위 유리(투명 플라스틱) 반사: 셀 애니처럼 경계가 또렷한 사선 빛줄기 두 개 + 오른쪽 아래 작은 반사 */
   .cd-panel::after {
     content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; border-radius: var(--r);
     background:
-      radial-gradient(ellipse 30% 13% at 22% 9%, rgba(255,255,255,.42) 0 60%, transparent 62%),
       linear-gradient(128deg, transparent 0 21%, rgba(255,255,255,.2) 21% 33%, transparent 33% 36.5%, rgba(255,255,255,.13) 36.5% 40%, transparent 40%),
       linear-gradient(128deg, transparent 0 80%, rgba(255,255,255,.12) 80% 83%, transparent 83%),
       linear-gradient(160deg, rgba(255,255,255,.1), transparent 45%, rgba(0,0,0,.08));
