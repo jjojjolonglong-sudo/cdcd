@@ -14,6 +14,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="CDCD" />
 <title>CDCD</title>
+<script src="https://jjojjolonglong-sudo.github.io/mnmn/fonts.v1.js" data-app="cdcd"></script>
 
 <!-- 레트로 폰트 (VT323 은 한글이 없어서 한글은 시스템 폰트로 대체됩니다) -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -127,15 +128,12 @@
   }
   /* 앨범 커버: 사각형 본체 전체에 깔림, 회전 안 함, 불투명도 75% */
   /* 내지: 케이스 안쪽(홈 라인 안)에 끼워진 앨범 커버 카드. 커버가 없으면 어두운 빈 내지가 보임 */
-  .liner, .cd-bg { position: absolute; inset: 6.2%; width: 87.6%; height: 87.6%; border-radius: 3.4%; z-index: 0; }
+  .liner, .cd-bg { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: var(--r); z-index: 0; }   /* 커버 사진이 둥근 네모 전체를 꽉 채움 */
   .liner {
     background: linear-gradient(160deg, #2b2448, #130f28);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,.09), 0 1px 3px rgba(0,0,0,.6);
   }
-  .cd-bg {
-    object-fit: cover; opacity: .94; visibility: hidden;
-    box-shadow: 0 0 0 1px rgba(0,0,0,.6), 0 2px 7px rgba(0,0,0,.55), inset 0 0 14px rgba(0,0,0,.35);   /* 종이 가장자리 + 살짝 가라앉은 느낌 */
-  }
+  .cd-bg { object-fit: cover; opacity: 1; visibility: hidden; }
   /* 본체 바깥 가장자리: 투명 플라스틱의 두께감 */
   .cd-panel::before {
     content: ""; position: absolute; inset: 0; z-index: 4; pointer-events: none; border-radius: var(--r);
@@ -145,11 +143,14 @@
       inset -3px -3px 8px rgba(0,0,0,.4);
   }
   /* 유리 반사광 (고정) */
+  /* 맨 위 유리(투명 플라스틱) 반사: 셀 애니처럼 경계가 또렷한 사선 빛줄기 두 개 + 왼쪽 위 둥근 하이라이트 + 오른쪽 아래 작은 반사 */
   .cd-panel::after {
     content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; border-radius: var(--r);
     background:
-      linear-gradient(135deg, rgba(255,255,255,.34), rgba(255,255,255,.05) 30%, transparent 46%),
-      linear-gradient(315deg, rgba(255,255,255,.12), transparent 28%);
+      radial-gradient(ellipse 30% 13% at 22% 9%, rgba(255,255,255,.42) 0 60%, transparent 62%),
+      linear-gradient(128deg, transparent 0 21%, rgba(255,255,255,.2) 21% 33%, transparent 33% 36.5%, rgba(255,255,255,.13) 36.5% 40%, transparent 40%),
+      linear-gradient(128deg, transparent 0 80%, rgba(255,255,255,.12) 80% 83%, transparent 83%),
+      linear-gradient(160deg, rgba(255,255,255,.1), transparent 45%, rgba(0,0,0,.08));
   }
 
   /* 홈 라인: 1px 어두운 선 + 1px 밝은 선(1px 어긋나게)으로 가늘게 파인 홈 표현 */
@@ -298,11 +299,19 @@
   /* =========================================================
    * 4. 관리(CRUD) 창 — 윈도우 95 스타일
    * ========================================================= */
-  .modal {
-    position: fixed; inset: 0; z-index: 50; padding: 12px;
-    background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center;
-  }
-  .modal[hidden] { display: none; }
+  /* 관리 화면: 상자 안에서 플레이어 대신 보임. 열려 있는 동안 상자는 창 높이를 채우고, PC에서는 넓어짐 */
+  .mgr { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin: 6px 3px 3px; background: var(--chrome-hi); color: #111; font-size: 20px;
+    border: 2px solid; border-color: #fff #404040 #404040 #fff; }
+  .mgr[hidden] { display: none; }
+  .winamp.mgr-open .body { display: none; }
+  .winamp.mgr-open { height: calc(var(--vh) - 2 * var(--m)); max-height: none; width: min(720px, calc(100vw - 2 * var(--m))); }
+  html[data-layout] .winamp.mgr-open { height: calc(var(--vh) - 2 * var(--m)); width: min(720px, calc(100vw - 2 * var(--m))); }
+  .mgr-x { margin-left: auto; align-self: center; }
+  .pick-list { max-height: 46vh; overflow: auto; margin-bottom: 8px; }
+  .pick-list label { display: flex; align-items: center; gap: 8px; padding: 3px 8px; border-bottom: 1px solid #ddd; cursor: pointer; }
+  .pick-list label.has { color: #888; cursor: default; }
+  .pick-list input { width: 18px; height: 18px; flex: none; }
+  .pick-list .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .win {
     width: min(720px, 100%); max-height: 92vh; display: flex; flex-direction: column;
     background: var(--chrome-hi); color: #111; font-size: 20px;
@@ -378,6 +387,15 @@
   }
 
   @media (prefers-reduced-motion: reduce) { .marquee.scroll span { animation: none; } }
+
+  /* 모바일(창 너비 600px 이하, 세로 화면): 상자가 창 너비를 꽉 채우고, CD 플레이어도 폭에 맞춰 커짐 (360px 제한 없음) */
+  @media (max-width: 600px) {
+    html[data-layout="portrait"] .winamp {
+      --ps: clamp(120px, calc(var(--vh) - 2 * var(--m) - var(--fixed)), calc(100vw - 2 * var(--m) - 24px));
+      width: calc(100vw - 2 * var(--m)); max-height: none;
+    }
+    html[data-layout="portrait"] .body > .cd-panel { width: var(--ps); align-self: center; }
+  }
 
   /* =========================================================
    * 레이아웃 3종 (JS 가 <html data-layout> 을 portrait / landscape / square 로 지정)
@@ -628,27 +646,21 @@
       <div class="notice">Loading playlist...</div>
     </div>
   </div>
-</main>
 
-<!-- ================= 관리(CRUD) 창 ================= -->
-<div class="modal" id="modal" hidden>
-  <div class="win" role="dialog" aria-modal="true" aria-label="데이터 관리">
-    <div class="titlebar">
-      <span class="grip"></span>
-      <span class="ttl">MANAGER</span>
-      <span class="grip"></span>
-      <button class="tb-btn" id="btn-close" title="닫기" aria-label="닫기">✕</button>
-    </div>
+  <!-- 관리(CRUD): 팝업이 아니라 이 상자 안에서 열려요 (⚙ 또는 ✕로 닫기). 음악은 계속 재생돼요 -->
+  <section class="mgr" id="modal" hidden aria-label="데이터 관리">
     <div class="tabs" id="tabs">
       <button class="tab" data-tab="music">곡</button>
       <button class="tab" data-tab="album">앨범</button>
       <button class="tab" data-tab="artist">가수</button>
       <button class="tab" data-tab="playlist">재생목록</button>
       <button class="tab" data-tab="tracks">재생목록 곡 구성</button>
+      <button class="tb-btn mgr-x" id="btn-close" title="닫기" aria-label="닫기">✕</button>
     </div>
     <div class="mgr-body" id="mgr-body"></div>
-  </div>
-</div>
+  </section>
+</main>
+
 
 <!-- ================= 로그인 창 ================= -->
 <div class="login" id="login" hidden>
@@ -666,7 +678,7 @@
 <!-- Supabase JS SDK (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://jjojjolonglong-sudo.github.io/mnmn/config.js"></script>
-<script src="https://jjojjolonglong-sudo.github.io/mnmn/media.v1.js"></script>
+<script src="https://jjojjolonglong-sudo.github.io/mnmn/media.v2.js"></script>
 
 <script>
 /* =========================================================
@@ -686,7 +698,7 @@ const COVER_H = 400;
  * ========================================================= */
 let sb = null;             // Supabase 클라이언트
 if(!window.Media)window.Media={init(){},url:()=>'',process:async()=>{throw new Error('media.js could not be loaded')},upload:async()=>{throw new Error('media.js could not be loaded')}};
-Media.init({getToken:async()=>(await sb.auth.getSession()).data.session?.access_token});
+Media.init({app:'cdcd',getToken:async()=>(await sb.auth.getSession()).data.session?.access_token});
 let tracks = [];           // 현재 화면에 표시/재생 중인 곡 목록
 let allTracks = [];        // music 테이블 전체 곡
 let currentIndex = 0;      // 현재 곡 인덱스
@@ -1097,8 +1109,8 @@ const SCHEMA = {
     fields: [
       { key: "name", label: "곡 제목", type: "text", required: true },
       { key: "youtube_url", label: "유튜브 URL", type: "text", required: true },
-      { key: "artist_id", label: "가수", type: "ref", ref: "artist" },
       { key: "album_id", label: "앨범", type: "ref", ref: "album" },
+      { key: "artist_id", label: "가수", type: "ref", ref: "artist" },
     ],
     title: (r) => r.name,
     sub: (r) => `${pickOne(r.artist)?.name ?? "-"} · ${pickOne(r.album)?.name ?? "-"}`,
@@ -1135,10 +1147,12 @@ function mgrMsg(text, isErr) {
 /* ---- 열기 / 닫기 ---- */
 $("btn-manage").addEventListener("click", () => {
   if (!sb) return;
-  $("modal").hidden = false; mgr.dirty = false; openTab(mgr.tab);
+  if (!$("modal").hidden) { closeModal(); return; }   // ⚙ 다시 누르면 닫기
+  $("modal").hidden = false; document.querySelector(".winamp").classList.add("mgr-open"); mgr.dirty = false; openTab(mgr.tab);
 });
 function closeModal() {
-  $("modal").hidden = true;
+  $("modal").hidden = true; document.querySelector(".winamp").classList.remove("mgr-open");
+  const t = lastMarquee; lastMarquee = null; if (t != null) setMarquee(t);   // 전광판 다시 맞추기
   if (mgr.dirty) { mgr.dirty = false; refreshData().catch((e) => console.error(e)); }   // 바뀐 내용이 있으면 화면 갱신
 }
 $("btn-close").addEventListener("click", closeModal);
@@ -1158,7 +1172,7 @@ async function openTab(tab) {
     const cfg = SCHEMA[tab];
     // 참조(select) 필드용 목록 (가수/앨범)
     for (const f of cfg.fields.filter((f) => f.type === "ref")) {
-      const { data, error } = await sb.from("cdcd_" + f.ref).select("id, name").order("id");
+      const { data, error } = await sb.from("cdcd_" + f.ref).select(f.ref === "album" ? "id, name, artist_id" : "id, name").order("id");
       if (error) throw error;
       mgr.refs[f.ref] = data || [];
     }
@@ -1219,6 +1233,10 @@ mgrBody.addEventListener("change", (e) => {
     const p = $("img-preview");
     if (p) { p.src = URL.createObjectURL(e.target.files[0]); p.style.visibility = "visible"; }
   }
+  if (e.target.name === "album_id" && mgr.tab === "music") {   // 앨범을 고르면 그 앨범의 가수를 자동으로 선택
+    const al = (mgr.refs.album || []).find((a) => String(a.id) === e.target.value), ar = e.target.form && e.target.form.elements.artist_id;
+    if (al && al.artist_id && ar) ar.value = String(al.artist_id);
+  }
   if (e.target.id === "trk-pl") { mgr.trackPl = Number(e.target.value); drawTracks().catch((er) => mgrMsg(explain(er), true)); }
 });
 
@@ -1265,6 +1283,8 @@ mgrBody.addEventListener("click", async (e) => {
     if (act === "edit") { mgr.editingId = id; drawCrud(); mgrBody.scrollTop = 0; }
     else if (act === "cancel") { mgr.editingId = null; drawCrud(); }
     else if (act === "del") await deleteRow(id);
+    else if (act === "trk-pick") pickTracks();
+    else if (act === "trk-pick-x") $("trk-picker").innerHTML = "";
     else if (act === "trk-add") await addTrack();
     else if (act === "up") await moveTrack(id, -1);
     else if (act === "down") await moveTrack(id, +1);
@@ -1307,7 +1327,6 @@ async function drawTracks() {
   mgr.trackRows = data || [];
 
   const plOpts = mgr.playlists.map((p) => `<option value="${p.id}" ${p.id === mgr.trackPl ? "selected" : ""}>${esc(p.name)}</option>`).join("");
-  const muOpts = mgr.musicList.map((m) => `<option value="${m.id}">${esc(m.name)} - ${esc(pickOne(m.artist)?.name ?? "-")}</option>`).join("");
   const rows = mgr.trackRows.map((r, i) => {
     const m = pickOne(r.music);
     return `<div class="item">
@@ -1322,20 +1341,36 @@ async function drawTracks() {
   mgrBody.innerHTML = `
     <div class="card">
       <label class="fld"><span>재생목록 선택</span><select id="trk-pl">${plOpts}</select></label>
-      <label class="fld"><span>추가할 곡</span><select id="trk-music">${muOpts || "<option value=''>(곡이 없습니다)</option>"}</select></label>
-      <div class="btns"><button class="wbtn" data-act="trk-add">+ 이 재생목록에 추가</button></div>
+      <div class="btns"><button class="wbtn" data-act="trk-pick">+ 곡 추가</button></div>
+      <div id="trk-picker"></div>
       <div class="msg" id="mgr-msg"></div>
     </div>
     <div class="list">${rows}</div>`;
 }
 
+/* 곡 고르기: 전체 곡을 체크박스 목록으로 보여주고, 체크한 곡을 한 번에 맨 뒤에 추가 (이미 들어 있는 곡은 회색) */
+function pickTracks() {
+  const have = new Set(mgr.trackRows.map((r) => pickOne(r.music)?.id));
+  const rows = mgr.musicList.map((m) => {
+    const h = have.has(m.id);
+    return `<label class="${h ? "has" : ""}"><input type="checkbox" value="${m.id}" ${h ? "checked disabled" : ""}><span class="grow">${esc(m.name)} - ${esc(pickOne(m.artist)?.name ?? "-")}</span>${h ? "<small>추가됨</small>" : ""}</label>`;
+  }).join("") || '<div class="empty">곡이 없습니다.</div>';
+  $("trk-picker").innerHTML = `<label class="fld" style="margin-top:8px"><span>곡 찾기</span><input type="text" id="trk-q" autocomplete="off"></label>
+    <div class="list pick-list" id="trk-list">${rows}</div>
+    <div class="btns"><button class="wbtn" data-act="trk-add">체크한 곡 추가</button><button class="wbtn" data-act="trk-pick-x">취소</button></div>`;
+  $("trk-q").addEventListener("input", (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    $("trk-list").querySelectorAll("label").forEach((l) => { l.hidden = !!q && !l.textContent.toLowerCase().includes(q); });
+  });
+}
 async function addTrack() {
-  const musicId = Number($("trk-music").value);
-  if (!musicId) throw new Error("추가할 곡을 선택하세요.");
-  const next = mgr.trackRows.reduce((mx, r) => Math.max(mx, r.track_order || 0), 0) + 1;   // 맨 뒤에 추가
-  const { error } = await sb.from("cdcd_playlist_track").insert({ playlist_id: mgr.trackPl, music_id: musicId, track_order: next });
+  const ids = [...document.querySelectorAll("#trk-list input:checked:not(:disabled)")].map((c) => Number(c.value));
+  if (!ids.length) throw new Error("추가할 곡을 체크하세요.");
+  let next = mgr.trackRows.reduce((mx, r) => Math.max(mx, r.track_order || 0), 0);   // 맨 뒤에 차례대로
+  const rows = ids.map((music_id) => ({ playlist_id: mgr.trackPl, music_id, track_order: ++next }));
+  const { error } = await sb.from("cdcd_playlist_track").insert(rows);
   if (error) throw error;
-  mgr.dirty = true; await drawTracks(); mgrMsg("추가되었습니다.");
+  mgr.dirty = true; await drawTracks(); mgrMsg(ids.length + "곡을 추가했습니다.");
 }
 
 async function moveTrack(id, dir) {
@@ -1386,7 +1421,7 @@ function lockApp() {
   el.marqueeText.textContent = ""; lastMarquee = "";
   el.time.textContent = "00:00"; el.duration.textContent = "/ 00:00"; el.seekFill.style.width = "0%";
   setCover("");
-  $("modal").hidden = true; mgr.dirty = false;
+  $("modal").hidden = true; document.querySelector(".winamp").classList.remove("mgr-open"); mgr.dirty = false;
   showLogin();
 }
 
