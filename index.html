@@ -677,7 +677,8 @@
 <!-- Supabase JS SDK (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://jjojjolonglong-sudo.github.io/mnmn/config.js"></script>
-<script src="https://jjojjolonglong-sudo.github.io/mnmn/media.v2.js"></script>
+<script src="https://jjojjolonglong-sudo.github.io/mnmn/core.v1.js" data-app="cdcd"></script>
+<script src="https://jjojjolonglong-sudo.github.io/mnmn/media.js"></script>
 
 <script>
 /* =========================================================
@@ -1478,7 +1479,7 @@ $("btn-logout").addEventListener("click", async () => {
   try {
     // 실수로 .../rest/v1/ 까지 붙여 넣어도 자동으로 제거
     const url = SUPABASE_URL.replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
-    sb = supabase.createClient(url, SUPABASE_ANON_KEY);
+    sb = supabase.createClient(url, SUPABASE_ANON_KEY, window.Core ? { auth: Core.sbAuth } : undefined);
 
     // 로그아웃되거나 세션이 만료되면 자동으로 잠금
     sb.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") lockApp(); });
