@@ -501,6 +501,8 @@
     <span class="grip"></span>
     <span class="ttl">CDCD</span>
     <span class="grip"></span>
+    <button class="tb-btn" id="btn-inst" title="앱 설치" aria-label="앱 설치"><svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 1v8"/><path d="M3.5 5.5 7 9l3.5-3.5"/><path d="M1.5 12.5h11"/></svg></button>
+    <button class="tb-btn" id="btn-reload" title="새로고침" aria-label="새로고침"><svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 7.5A5 5 0 1 1 10.5 3.4"/><path d="M11 .8v3.2H7.8"/></svg></button>
     <button class="tb-btn" id="btn-manage" title="관리" aria-label="관리">⚙</button>
     <button class="tb-btn" id="btn-logout" title="로그아웃" aria-label="로그아웃"><svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 0v6.5"/><path d="M3.6 3A5.5 5.5 0 1 0 10.4 3"/></svg></button>
   </div>
@@ -679,6 +681,7 @@
 <script src="https://jjojjolonglong-sudo.github.io/mnmn/config.js"></script>
 <script src="https://jjojjolonglong-sudo.github.io/mnmn/core.v1.js" data-app="cdcd"></script>
 <script src="https://jjojjolonglong-sudo.github.io/mnmn/media.js"></script>
+<script src="https://jjojjolonglong-sudo.github.io/mnmn/pick.v1.js"></script>
 
 <script>
 /* =========================================================
@@ -1497,6 +1500,25 @@ $("btn-logout").addEventListener("click", async () => {
 
 <!-- 서비스 워커 등록 (http/https 로 열었을 때만. file:// 에서는 동작하지 않음) -->
 <script>
+/* 새로고침 · 앱 설치(크롬이 허락하면 설치 창, 이미 깔려 있으면 안내, 아이폰은 '공유 → 홈 화면에 추가'; 설치된 앱으로 열면 버튼 숨김) */
+document.getElementById("btn-reload").addEventListener("click", () => location.reload());
+let installEv = null;
+addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEv = e; });
+if (matchMedia("(display-mode: standalone)").matches || navigator.standalone === true) document.getElementById("btn-inst").remove();
+else document.getElementById("btn-inst").addEventListener("click", async () => {
+  if (installEv) { installEv.prompt(); await installEv.userChoice.catch(() => {}); installEv = null; return; }
+  let ins = false; try { ins = !!(navigator.getInstalledRelatedApps && (await navigator.getInstalledRelatedApps()).length); } catch (e) {}
+  alert(ins ? "이미 이 기기에 설치돼 있어요. (설치 버튼이 필요하면 앱을 지우고 다시 열면 생겨요)" : /iPhone|iPad|iPod/.test(navigator.userAgent) ? "아이폰: 사파리 아래 공유 버튼 → 홈 화면에 추가" : "브라우저 메뉴(⋮) → 앱 설치(또는 홈 화면에 추가)를 눌러 주세요.");
+});
+/* 관리 창의 가수·앨범 고르기: 타이핑해서 찾고, 없으면 엔터로 그 이름을 새로 만들어 바로 넣기 */
+if (window.Pick) Pick.auto('#mgr-body select[name="artist_id"], #mgr-body select[name="album_id"]', { create: async (name, sel) => {
+  const ref = sel.name === "album_id" ? "album" : "artist", row = { name };
+  if (ref === "album") { const ar = sel.form && sel.form.elements.artist_id; if (ar && ar.value) row.artist_id = Number(ar.value); }
+  const { data, error } = await sb.from("cdcd_" + ref).insert(row).select(ref === "album" ? "id, name, artist_id" : "id, name").single();
+  if (error) { mgrMsg(explain(error), true); return null; }
+  (mgr.refs[ref] = mgr.refs[ref] || []).push(data); mgr.dirty = true; mgrMsg((ref === "album" ? "새 앨범" : "새 가수") + "을 만들었어요: " + name);
+  return data.id;
+} });
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js").catch((e) => console.warn("서비스 워커 등록 실패:", e));

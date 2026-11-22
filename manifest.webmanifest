@@ -9,6 +9,7 @@
   "display": "standalone",
   "background_color": "#120a26",
   "theme_color": "#120a26",
+  "related_applications": [{ "platform": "webapp", "url": "https://jjojjolonglong-sudo.github.io/cdcd/manifest.webmanifest" }],
   "icons": [
     {
       "src": "icon-192.png",

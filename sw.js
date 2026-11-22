@@ -4,7 +4,7 @@
  *  - 같은 사이트의 파일은 "네트워크 우선, 실패하면 캐시" → GitHub 에 새 버전을 올리면 바로 반영됨
  *  - Supabase / YouTube / CDN 같은 외부 요청은 건드리지 않고 그대로 통과 (음악/데이터는 항상 최신)
  * ========================================================= */
-const CACHE = "cdcd-v2";   // 캐시 목록(SHELL)을 바꿨을 때만 숫자를 올리세요
+const CACHE = "cdcd-v3";   // 캐시 목록(SHELL)을 바꿨을 때만 숫자를 올리세요
 const SHELL = [
   "./",
   "./index.html",
@@ -33,7 +33,7 @@ self.addEventListener("fetch", (event) => {
   if (new URL(req.url).origin !== self.location.origin) return;   // 외부 요청은 통과
 
   event.respondWith(
-    fetch(req)
+    fetch(req.url,{cache:'no-cache',credentials:'same-origin'})
       .then((res) => {
         if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
         return res;
